@@ -81,7 +81,7 @@ func (c *Cryptor) Load(filename string) ([]byte, error) {
 	return plaintext[:len(plaintext)-npadding], nil
 }
 
-func (c *Cryptor) Save(filename string, plaintext []byte) error {
+func (c *Cryptor) saveWithIV(filename string, plaintext []byte, iv []byte) error {
 	blocksize := c.block.BlockSize()
 
 	// the number of padding bytes required
@@ -93,15 +93,9 @@ func (c *Cryptor) Save(filename string, plaintext []byte) error {
 
 	ciphertext := make([]byte, blocksize+len(plaintext))
 
-	// FIXME: for testing purposes, it should be possible to keep the IV static
-	// (to get deterministic tests)
-
-	// generate a random IV which we store at the beginning of the cipher text
-	// the IV doesn't need to be secret, just unique
-	iv := ciphertext[:blocksize]
-	if _, err := io.ReadFull(rand.Reader, iv); err != nil {
-		return fmt.Errorf("generating IV: %s", err)
-	}
+	// the IV doesn't need to be secret, just unique, so we store at the
+	// beginning of the ciphertext
+	copy(ciphertext[:blocksize], iv)
 
 	mode := cipher.NewCBCEncrypter(c.block, iv)
 	mode.CryptBlocks(ciphertext[blocksize:], plaintext)
@@ -117,6 +111,15 @@ func (c *Cryptor) Save(filename string, plaintext []byte) error {
 	}
 
 	return nil
+}
+
+// Encrypts plaintext and saves it to filename
+func (c *Cryptor) Save(filename string, plaintext []byte) error {
+	iv, err := generateiv(c.block.BlockSize())
+	if err != nil {
+		return err
+	}
+	return c.saveWithIV(filename, plaintext, iv)
 }
 
 func NewCryptor(password []byte) (*Cryptor, error) {
@@ -141,4 +144,12 @@ func NewCryptor(password []byte) (*Cryptor, error) {
 		// have to be completely independent?
 		mac: hmac.New(sha256.New, password),
 	}, nil
+}
+
+func generateiv(size int) ([]byte, error) {
+	iv := make([]byte, size)
+	if _, err := io.ReadFull(rand.Reader, iv); err != nil {
+		return nil, fmt.Errorf("generating IV: %s", err)
+	}
+	return iv, nil
 }
