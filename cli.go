@@ -76,10 +76,17 @@ func (cli *Cli) ls(args ...string) error {
 }
 
 func (cli *Cli) help(args ...string) error {
-	fmt.Println("This is the help message!")
 	if len(args) > 0 {
 		return fmt.Errorf("doesn't take any argument yet")
 	}
+
+	fmt.Println("Money")
+	fmt.Println("\nAvailable commands:")
+	fmt.Println("exit")
+	for cmd, _ := range cli.commands {
+		fmt.Println(cmd)
+	}
+
 	return nil
 }
 
