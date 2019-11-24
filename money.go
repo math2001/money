@@ -5,20 +5,19 @@ import (
 	"fmt"
 	"log"
 	"os"
+
+	"golang.org/x/crypto/ssh/terminal"
 )
 
 func main() {
 	// FIXME: how can we make sure that the user can easily check that *this*
 	// program is asking for the password, and some other random thing?
 	fmt.Print("Enter password: ")
-	// password, err := terminal.ReadPassword(int(os.Stdin.Fd()))
-	// if err != nil {
-	// 	log.Fatalf("reading password from stdin: %s", err)
-	// }
-	fmt.Println()
-	password := []byte("hello world")
+	password, err := terminal.ReadPassword(int(os.Stdin.Fd()))
+	if err != nil {
+		log.Fatalf("reading password from stdin: %s", err)
+	}
 
-	// remove trailling line feed
 	cryptor, err := NewCryptor(password)
 	if err != nil {
 		log.Fatalf("creating cryptor: %s", err)
