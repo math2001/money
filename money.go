@@ -23,7 +23,7 @@ func main() {
 		log.Fatalf("makdir store: %s", err)
 	}
 
-	NewApp(cryptor).Start()
+	NewCli(cryptor).Start()
 }
 
 func login() *Cryptor {

@@ -10,16 +10,16 @@ import (
 	"strings"
 )
 
-type App struct {
+type Cli struct {
 	cryptor  *Cryptor
 	commands map[string]func(...string) error
 }
 
-func (app *App) Start() {
-	app.commands = map[string]func(...string) error{
-		"help": app.help,
-		"ls":   app.ls,
-		"load": app.load,
+func (cli *Cli) Start() {
+	cli.commands = map[string]func(...string) error{
+		"help": cli.help,
+		"ls":   cli.ls,
+		"load": cli.load,
 	}
 
 	reader := bufio.NewReader(os.Stdin)
@@ -35,9 +35,9 @@ func (app *App) Start() {
 		if command == "exit" {
 			return
 		}
-		fn, ok := app.commands[command]
+		fn, ok := cli.commands[command]
 		if !ok {
-			app.unhandledCommand(command, args)
+			cli.unhandledCommand(command, args)
 		} else {
 			err := fn(args...)
 			if err != nil {
@@ -47,13 +47,13 @@ func (app *App) Start() {
 	}
 }
 
-func (app *App) load(args ...string) error {
+func (cli *Cli) load(args ...string) error {
 	if len(args) != 1 {
 		// FIXME: display usage for this command
 		return fmt.Errorf("load takes one argument, the filename")
 	}
 	path := filepath.Join(store, args[0])
-	content, err := app.cryptor.Load(path)
+	content, err := cli.cryptor.Load(path)
 	if err != nil {
 		return fmt.Errorf("loading %q: %s", path, err)
 	}
@@ -61,7 +61,7 @@ func (app *App) load(args ...string) error {
 	return nil
 }
 
-func (app *App) ls(args ...string) error {
+func (cli *Cli) ls(args ...string) error {
 	if len(args) > 0 {
 		return fmt.Errorf("ls doesn't take any argument")
 	}
@@ -75,7 +75,7 @@ func (app *App) ls(args ...string) error {
 	return nil
 }
 
-func (app *App) help(args ...string) error {
+func (cli *Cli) help(args ...string) error {
 	fmt.Println("This is the help message!")
 	if len(args) > 0 {
 		return fmt.Errorf("doesn't take any argument yet")
@@ -83,7 +83,7 @@ func (app *App) help(args ...string) error {
 	return nil
 }
 
-func (app *App) unhandledCommand(command string, args []string) {
+func (cli *Cli) unhandledCommand(command string, args []string) {
 	// FIXME: look up similar commands
 	fmt.Printf("Command %q doesn't exist\n", command)
 }
@@ -94,8 +94,8 @@ func parse(instructionline string) (string, []string) {
 	return fields[0], fields[1:]
 }
 
-func NewApp(cryptor *Cryptor) *App {
-	return &App{
+func NewCli(cryptor *Cryptor) *Cli {
+	return &Cli{
 		cryptor: cryptor,
 	}
 }
