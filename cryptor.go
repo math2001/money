@@ -76,7 +76,6 @@ func (c *Cryptor) Load(filename string) ([]byte, error) {
 		return nil, ErrInvalidPadding
 	}
 
-	fmt.Println(npadding)
 	for i := len(plaintext) - npadding; i < len(plaintext); i++ {
 		if plaintext[i] != npaddingbyte {
 			// should more detail be given in this error message?
