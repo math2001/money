@@ -2,11 +2,15 @@ package main
 
 import (
 	"bufio"
+	"crypto/rand"
+	"encoding/hex"
 	"fmt"
+	"io"
 	"io/ioutil"
 	"log"
 	"os"
 	"path/filepath"
+	"strconv"
 	"strings"
 
 	"golang.org/x/crypto/ssh/terminal"
@@ -22,11 +26,12 @@ type Cli struct {
 // Start the CLI application
 func (cli *Cli) Start() {
 	cli.commands = map[string]func(...string) error{
-		"login": cli.login,
-		"help":  cli.help,
-		"ls":    cli.ls,
-		"load":  cli.load,
-		"save":  cli.save,
+		"login":       cli.login,
+		"generatekey": cli.generatekey,
+		"help":        cli.help,
+		"ls":          cli.ls,
+		"load":        cli.load,
+		"save":        cli.save,
 	}
 
 	cli.reader = bufio.NewReader(os.Stdin)
@@ -162,6 +167,43 @@ func (cli *Cli) confirm(question string) bool {
 		}
 		// otherwise we keep asking
 	}
+}
+
+func (cli *Cli) generatekey(args ...string) error {
+	if len(args) != 2 {
+		return fmt.Errorf("wrong arguments: \n    > generatekey <path> <length>\nif <path> is -, write to stdout")
+	}
+	path := args[0]
+	keylength, err := strconv.Atoi(args[1])
+	if err != nil {
+		return fmt.Errorf("invalid length %q: %s", args[1], err)
+	}
+
+	// file exists and user doesn't want to overwrite it
+	if _, err := os.Stat(path); err == nil && !cli.confirm("Overwrite existing file?") {
+		fmt.Println("Abort")
+		return nil
+	}
+
+	var writer io.Writer
+	if path == "-" {
+		writer = os.Stdout
+	} else {
+		f, err := os.Create(path)
+		if err != nil {
+			return fmt.Errorf("creating file %q: %s", path, err)
+		}
+		defer f.Close()
+		writer = f
+	}
+
+	if _, err := io.CopyN(hex.NewEncoder(writer), rand.Reader, int64(keylength)); err != nil {
+		return fmt.Errorf("generating and writing key to file: %s", err)
+	}
+	if writer == os.Stdout {
+		fmt.Println()
+	}
+	return nil
 }
 
 func (cli *Cli) unhandledCommand(command string, args []string) {
