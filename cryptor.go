@@ -71,6 +71,12 @@ func (c *Cryptor) Load(filename string) ([]byte, error) {
 	npaddingbyte := plaintext[len(plaintext)-1]
 	npadding := int(npaddingbyte)
 
+	if npadding > c.mac.BlockSize() {
+		// should we give more details in this error message?
+		return nil, ErrInvalidPadding
+	}
+
+	fmt.Println(npadding)
 	for i := len(plaintext) - npadding; i < len(plaintext); i++ {
 		if plaintext[i] != npaddingbyte {
 			// should more detail be given in this error message?

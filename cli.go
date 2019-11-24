@@ -6,6 +6,7 @@ import (
 	"io/ioutil"
 	"log"
 	"os"
+	"path/filepath"
 	"strings"
 )
 
@@ -18,6 +19,7 @@ func (app *App) Start() {
 	app.commands = map[string]func(...string) error{
 		"help": app.help,
 		"ls":   app.ls,
+		"load": app.load,
 	}
 
 	reader := bufio.NewReader(os.Stdin)
@@ -45,11 +47,25 @@ func (app *App) Start() {
 	}
 }
 
+func (app *App) load(args ...string) error {
+	if len(args) != 1 {
+		// FIXME: display usage for this command
+		return fmt.Errorf("load takes one argument, the filename")
+	}
+	path := filepath.Join(store, args[0])
+	content, err := app.cryptor.Load(path)
+	if err != nil {
+		return fmt.Errorf("loading %q: %s", path, err)
+	}
+	fmt.Println(string(content))
+	return nil
+}
+
 func (app *App) ls(args ...string) error {
 	if len(args) > 0 {
 		return fmt.Errorf("ls doesn't take any argument")
 	}
-	files, err := ioutil.ReadDir("store")
+	files, err := ioutil.ReadDir(store)
 	if err != nil {
 		return fmt.Errorf("listing files: %s", err)
 	}

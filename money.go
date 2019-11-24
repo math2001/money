@@ -8,6 +8,8 @@ import (
 	"golang.org/x/crypto/ssh/terminal"
 )
 
+const store = "store"
+
 func main() {
 	fmt.Println("Welcome to Cryptor")
 
@@ -15,9 +17,9 @@ func main() {
 	// program is asking for the password, and some other random thing?
 
 	var cryptor *Cryptor
-	// cryptor = login()
+	cryptor = login()
 
-	if err := os.MkdirAll("store", os.ModePerm); err != nil {
+	if err := os.MkdirAll(store, os.ModePerm); err != nil {
 		log.Fatalf("makdir store: %s", err)
 	}
 
@@ -27,6 +29,7 @@ func main() {
 func login() *Cryptor {
 	fmt.Print("Enter password: ")
 	password, err := terminal.ReadPassword(int(os.Stdin.Fd()))
+	fmt.Println()
 	if err != nil {
 		log.Fatalf("reading password from stdin: %s", err)
 	}
