@@ -13,6 +13,7 @@ import (
 type Cli struct {
 	cryptor  *Cryptor
 	commands map[string]func(...string) error
+	reader   *bufio.Reader
 }
 
 func (cli *Cli) Start() {
@@ -20,12 +21,13 @@ func (cli *Cli) Start() {
 		"help": cli.help,
 		"ls":   cli.ls,
 		"load": cli.load,
+		"save": cli.save,
 	}
 
-	reader := bufio.NewReader(os.Stdin)
+	cli.reader = bufio.NewReader(os.Stdin)
 	for {
 		fmt.Print("> ")
-		instructionline, err := reader.ReadString('\n')
+		instructionline, err := cli.reader.ReadString('\n')
 		if err != nil {
 			// FIXME: retry a few times, and quit if it doesn't work
 			log.Fatalf("reading from stdin: %s", err)
@@ -57,7 +59,31 @@ func (cli *Cli) load(args ...string) error {
 	if err != nil {
 		return fmt.Errorf("loading %q: %s", path, err)
 	}
-	fmt.Println(string(content))
+	fmt.Print(string(content))
+	if content[len(content)-1] != '\n' {
+		fmt.Println("\xe2\x8f\x8e\x20")
+	}
+	return nil
+}
+
+func (cli *Cli) save(args ...string) error {
+	if len(args) != 1 {
+		return fmt.Errorf("takes one argument, the filename")
+	}
+	path := filepath.Join(store, args[0])
+	// file exists and user doesn't want to overwrite it
+	if _, err := os.Stat(path); err == nil && !cli.confirm("Overwrite existing file?") {
+		fmt.Println("Abort")
+		return nil
+	}
+
+	content, err := ioutil.ReadAll(os.Stdin)
+	if err != nil {
+		return fmt.Errorf("reading from stdin: %s", err)
+	}
+	if err := cli.cryptor.Save(path, content); err != nil {
+		return fmt.Errorf("saving to file: %s", err)
+	}
 	return nil
 }
 
@@ -88,6 +114,23 @@ func (cli *Cli) help(args ...string) error {
 	}
 
 	return nil
+}
+
+func (cli *Cli) confirm(question string) bool {
+	for {
+		fmt.Printf("%s (y/n) ", question)
+		ans, err := cli.reader.ReadString('\n')
+		if err != nil {
+			fmt.Println()
+			log.Fatalf("reading line: %s", err)
+		}
+		if ans == "y\n" {
+			return true
+		} else if ans == "n\n" {
+			return false
+		}
+		// otherwise we keep asking
+	}
 }
 
 func (cli *Cli) unhandledCommand(command string, args []string) {
