@@ -1,0 +1,31 @@
+./money
+Enter password:
+plaintext length: 20, npaddingbytes: 12
+00000000  61 61 61 61 61 20 62 62  62 62 20 63 63 63 63 20  |aaaaa bbbb cccc |
+00000010  64 64 64 64 0c 0c 0c 0c  0c 0c 0c 0c 0c 0c 0c 0c  |dddd............|
+ciphertext: 48, signature: 32, written: 82
+cipher text written
+00000000  18 eb 45 a6 06 9d 29 8b  23 ea 33 0b ea ca f0 02  |..E...).#.3.....|
+00000010  28 15 5b 59 f3 8b b2 c0  18 c6 06 fa a8 31 32 07  |(.[Y.........12.|
+00000020  ed bc c4 ae 9b 9f 47 5b  27 0f 0a b1 39 6a 68 7e  |......G['...9jh~|
+Done
+invalid cipher text without the IV
+00000000  28 15 5b 59 f3 8b b2 c0  18 c6 06 fa a8 31 32 07  |(.[Y.........12.|
+00000010  ed bc c4 ae 9b 9f 47 5b  27 0f                    |......G['.|
+2019/11/24 16:15:26 loading from store/test1: ciphertext length isn't a multiple of block size (file corrupted)
+make: *** [Makefile:4: run] Error 1
+
+./money
+Enter password:
+plaintext length: 20, npaddingbytes: 12
+00000000  61 61 61 61 61 20 62 62  62 62 20 63 63 63 63 20  |aaaaa bbbb cccc |
+00000010  64 64 64 64 0c 0c 0c 0c  0c 0c 0c 0c 0c 0c 0c 0c  |dddd............|
+ciphertext: 48, signature: 32, written: 82
+cipher text written
+00000000  0a ab 71 ad 8f c3 f6 e4  ec 86 71 ba 2b 0f 10 3b  |..q.......q.+..;|
+00000010  40 97 f9 fe 4c 3b d5 f5  8a 03 07 1c c0 c9 12 90  |@...L;..........|
+00000020  52 e4 e8 40 23 d5 e3 ee  c4 41 c0 a0 0f 00 2a 01  |R..@#....A....*.|
+Done
+2019/11/24 16:17:51 loading from store/test1: ciphertext too short (file corrupted)
+make: *** [Makefile:4: run] Error 1
+
