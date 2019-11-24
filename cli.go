@@ -8,6 +8,8 @@ import (
 	"os"
 	"path/filepath"
 	"strings"
+
+	"golang.org/x/crypto/ssh/terminal"
 )
 
 // Cli is the cli application which provides an interface to the Cryptor
@@ -20,10 +22,11 @@ type Cli struct {
 // Start the CLI application
 func (cli *Cli) Start() {
 	cli.commands = map[string]func(...string) error{
-		"help": cli.help,
-		"ls":   cli.ls,
-		"load": cli.load,
-		"save": cli.save,
+		"login": cli.login,
+		"help":  cli.help,
+		"ls":    cli.ls,
+		"load":  cli.load,
+		"save":  cli.save,
 	}
 
 	cli.reader = bufio.NewReader(os.Stdin)
@@ -51,10 +54,31 @@ func (cli *Cli) Start() {
 	}
 }
 
+func (cli *Cli) login(args ...string) error {
+	if len(args) != 0 {
+		return fmt.Errorf("login doesn't take any argument")
+	}
+	fmt.Print("Enter password: ")
+	password, err := terminal.ReadPassword(int(os.Stdin.Fd()))
+	fmt.Println()
+	if err != nil {
+		return fmt.Errorf("reading password from stdin: %s", err)
+	}
+
+	cli.cryptor, err = NewCryptor(password)
+	if err != nil {
+		return fmt.Errorf("creating cryptor: %s", err)
+	}
+	return nil
+}
+
 func (cli *Cli) load(args ...string) error {
 	if len(args) != 1 {
 		// FIXME: display usage for this command
 		return fmt.Errorf("load takes one argument, the filename")
+	}
+	if err := cli.hasCryptor(); err != nil {
+		return err
 	}
 	path := filepath.Join(store, args[0])
 	content, err := cli.cryptor.Load(path)
@@ -72,6 +96,11 @@ func (cli *Cli) save(args ...string) error {
 	if len(args) != 1 {
 		return fmt.Errorf("takes one argument, the filename")
 	}
+
+	if err := cli.hasCryptor(); err != nil {
+		return err
+	}
+
 	path := filepath.Join(store, args[0])
 	// file exists and user doesn't want to overwrite it
 	if _, err := os.Stat(path); err == nil && !cli.confirm("Overwrite existing file?") {
@@ -140,15 +169,15 @@ func (cli *Cli) unhandledCommand(command string, args []string) {
 	fmt.Printf("Command %q doesn't exist\n", command)
 }
 
+func (cli *Cli) hasCryptor() error {
+	if cli.cryptor == nil {
+		return fmt.Errorf("You need to login first\n    > login")
+	}
+	return nil
+}
+
 func parse(instructionline string) (string, []string) {
 	// FIXME: this might need to be fancier (support quotes and stuff).
 	fields := strings.Fields(instructionline)
 	return fields[0], fields[1:]
-}
-
-// NewCli creates a new cli application
-func NewCli(cryptor *Cryptor) *Cli {
-	return &Cli{
-		cryptor: cryptor,
-	}
 }
