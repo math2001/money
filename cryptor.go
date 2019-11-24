@@ -22,30 +22,40 @@ import (
 	"golang.org/x/crypto/pbkdf2"
 )
 
+// ErrDifferentMACSum is returned if the mac sum of the file doesn't match
+// the computed mac sum. This means that the file has been corrupted, be very
+// careful, someone might be trying to attack
 var ErrDifferentMACSum = errors.New("mac sum don't match")
+
+// ErrInvalidPadding is returned if the padding of the plaintext during
+// decryption doesn't match the expected format. This isn't a good sign, and
+// may reveal to be an attack (see padding oracle)
 var ErrInvalidPadding = errors.New("invalid padding")
 
 // manages decrypting and encrypting from/to a file
 
+// Cryptor is a simple API which writes and read encrypted files using the
+// password given to the constructor
 type Cryptor struct {
 	block cipher.Block
 	mac   hash.Hash
 }
 
+// Load opens <filename>, decrypts its content, and returns it
 func (c *Cryptor) Load(filename string) ([]byte, error) {
 	content, err := ioutil.ReadFile(filename)
 	if err != nil {
 		return nil, fmt.Errorf("reading file: %s", err)
 	}
 
-	given_macsum := content[:c.mac.Size()]
+	givenMACSum := content[:c.mac.Size()]
 	ciphertext := content[c.mac.Size():]
 
 	// check MAC sum
 	c.mac.Write(ciphertext)
-	computed_sum := c.mac.Sum(nil)
+	computedSum := c.mac.Sum(nil)
 
-	if hmac.Equal(computed_sum, given_macsum) {
+	if hmac.Equal(computedSum, givenMACSum) {
 		return nil, ErrDifferentMACSum
 	}
 
@@ -118,7 +128,7 @@ func (c *Cryptor) saveWithIV(filename string, plaintext []byte, iv []byte) error
 	return nil
 }
 
-// Encrypts plaintext and saves it to filename
+// Save encrypts plaintext and saves it to filename
 func (c *Cryptor) Save(filename string, plaintext []byte) error {
 	iv, err := generateiv(c.block.BlockSize())
 	if err != nil {
@@ -127,9 +137,14 @@ func (c *Cryptor) Save(filename string, plaintext []byte) error {
 	return c.saveWithIV(filename, plaintext, iv)
 }
 
+// NewCryptor creates a new cryptor from the password (the password is into a
+// valid key using a hex salt specified in a gitignored file) Just create a
+// file in `package main` which defines the constant `hexsalt` to be hex
+// encoded 8 byte random string
 func NewCryptor(password []byte) (*Cryptor, error) {
-	// generate key from password
 
+	// FIXME: the salt should be loaded from a file, and if it doesn't exist,
+	// automatically generated
 	salt, err := hex.DecodeString(hexsalt)
 	if err != nil {
 		// FIXME: can the salt be exposed in this error?

@@ -10,12 +10,14 @@ import (
 	"strings"
 )
 
+// Cli is the cli application which provides an interface to the Cryptor
 type Cli struct {
 	cryptor  *Cryptor
 	commands map[string]func(...string) error
 	reader   *bufio.Reader
 }
 
+// Start the CLI application
 func (cli *Cli) Start() {
 	cli.commands = map[string]func(...string) error{
 		"help": cli.help,
@@ -109,7 +111,7 @@ func (cli *Cli) help(args ...string) error {
 	fmt.Println("Money")
 	fmt.Println("\nAvailable commands:")
 	fmt.Println("exit")
-	for cmd, _ := range cli.commands {
+	for cmd := range cli.commands {
 		fmt.Println(cmd)
 	}
 
@@ -144,6 +146,7 @@ func parse(instructionline string) (string, []string) {
 	return fields[0], fields[1:]
 }
 
+// NewCli creates a new cli application
 func NewCli(cryptor *Cryptor) *Cli {
 	return &Cli{
 		cryptor: cryptor,
