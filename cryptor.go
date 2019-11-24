@@ -150,6 +150,12 @@ func NewCryptor(password []byte) (*Cryptor, error) {
 		// FIXME: can the salt be exposed in this error?
 		return nil, fmt.Errorf("loading salt: %s", err)
 	}
+	// FIXME: maybe key should be static
+	// Currently, files is encrypted with password. So, if we change the
+	// password, we can't decrypt the files anymore. So, when changing
+	// password, we'd need to decode everything, and re-encode with the new
+	// password. Instead, we could store a static key in place of the current
+	// password and encrypt/decrypt that key using the real password.
 	key := pbkdf2.Key(password, salt, 4096, 32, sha256.New)
 
 	block, err := aes.NewCipher(key)
@@ -159,9 +165,9 @@ func NewCryptor(password []byte) (*Cryptor, error) {
 
 	return &Cryptor{
 		block: block,
-		// FIXME: the mac key should be different than the password would it
-		// even be good if it was generated *from* the password, or does it
-		// have to be completely independent?
+		// FIXME: the MACKey should be different from the password (completely
+		// independent). Otherwise, our identity will be bound to the password,
+		// meaning we won't be able to change it.
 		mac: hmac.New(sha256.New, password),
 	}, nil
 }
