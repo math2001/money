@@ -25,12 +25,11 @@ type Cli struct {
 // Start the CLI application
 func (cli *Cli) Start() {
 	cli.commands = map[string]func(...string) error{
-		"login":           cli.login,
-		"generatenewkeys": cli.generatenewkeys,
-		"help":            cli.help,
-		"ls":              cli.ls,
-		"load":            cli.load,
-		"save":            cli.save,
+		"login": cli.login,
+		"help":  cli.help,
+		"ls":    cli.ls,
+		"load":  cli.load,
+		"save":  cli.save,
 	}
 
 	cli.km = NewKeysManager()
@@ -64,6 +63,7 @@ func (cli *Cli) login(args ...string) error {
 	if len(args) != 0 {
 		return fmt.Errorf("login doesn't take any argument")
 	}
+	// FIXME: check km.HasKeysfile before asking for a password
 	fmt.Print("Enter password: ")
 	password, err := terminal.ReadPassword(int(os.Stdin.Fd()))
 	fmt.Println()
@@ -75,9 +75,15 @@ func (cli *Cli) login(args ...string) error {
 		return fmt.Errorf("login in keys manager: %s", err)
 	}
 
-	keys, err := cli.km.LoadKeys(password)
+	keys, err := cli.km.LoadKeys()
 	if errors.Is(err, ErrNoKeysfile) {
-		return fmt.Errorf("No keysfile found. If you haven't already got some keys, please run \n    > generatenewkeys")
+		fmt.Println("No keysfile found.")
+		if !cli.confirm("Would you like to generate some new keys?") {
+			return fmt.Errorf("Abort.")
+		}
+		cli.generatenewkeys()
+		fmt.Println("You now have to login")
+		return cli.login()
 	}
 	if err != nil {
 		return fmt.Errorf("loading keys from password: %s", err)
@@ -182,11 +188,7 @@ func (cli *Cli) confirm(question string) bool {
 	}
 }
 
-func (cli *Cli) generatenewkeys(args ...string) error {
-	if len(args) != 0 {
-		return fmt.Errorf("doesn't take any argument")
-	}
-
+func (cli *Cli) generatenewkeys() error {
 	fmt.Print("Enter new password: ")
 	password, err := terminal.ReadPassword(int(os.Stdin.Fd()))
 	fmt.Println()
