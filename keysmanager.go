@@ -31,6 +31,13 @@ type Keys struct {
 	MAC, Encryption []byte
 }
 
+// String prevents someone printing keys without realizing that they secret. If
+// he *really* wants to see the keys, he has to print them manually
+// (fmt.Println(keys.MAC))
+func (k Keys) String() string {
+	return fmt.Sprintf("[secret!] Keys{}")
+}
+
 func (km *KeysManager) LoadKeys() (Keys, error) {
 	var keys Keys
 
