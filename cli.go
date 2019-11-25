@@ -2,15 +2,13 @@ package main
 
 import (
 	"bufio"
-	"crypto/rand"
-	"encoding/hex"
+	"bytes"
+	"errors"
 	"fmt"
-	"io"
 	"io/ioutil"
 	"log"
 	"os"
 	"path/filepath"
-	"strconv"
 	"strings"
 
 	"golang.org/x/crypto/ssh/terminal"
@@ -21,18 +19,21 @@ type Cli struct {
 	cryptor  *Cryptor
 	commands map[string]func(...string) error
 	reader   *bufio.Reader
+	km       *KeysManager
 }
 
 // Start the CLI application
 func (cli *Cli) Start() {
 	cli.commands = map[string]func(...string) error{
-		"login":       cli.login,
-		"generatekey": cli.generatekey,
-		"help":        cli.help,
-		"ls":          cli.ls,
-		"load":        cli.load,
-		"save":        cli.save,
+		"login":           cli.login,
+		"generatenewkeys": cli.generatenewkeys,
+		"help":            cli.help,
+		"ls":              cli.ls,
+		"load":            cli.load,
+		"save":            cli.save,
 	}
+
+	cli.km = NewKeysManager()
 
 	cli.reader = bufio.NewReader(os.Stdin)
 	for {
@@ -70,7 +71,19 @@ func (cli *Cli) login(args ...string) error {
 		return fmt.Errorf("reading password from stdin: %s", err)
 	}
 
-	cli.cryptor, err = NewCryptor(password)
+	if err := cli.km.Login(password); err != nil {
+		return fmt.Errorf("login in keys manager: %s", err)
+	}
+
+	keys, err := cli.km.LoadKeys(password)
+	if errors.Is(err, ErrNoKeysfile) {
+		return fmt.Errorf("No keysfile found. If you haven't already got some keys, please run \n    > generatenewkeys")
+	}
+	if err != nil {
+		return fmt.Errorf("loading keys from password: %s", err)
+	}
+
+	cli.cryptor, err = NewCryptor(keys.MAC, keys.Encryption)
 	if err != nil {
 		return fmt.Errorf("creating cryptor: %s", err)
 	}
@@ -82,7 +95,7 @@ func (cli *Cli) load(args ...string) error {
 		// FIXME: display usage for this command
 		return fmt.Errorf("load takes one argument, the filename")
 	}
-	if err := cli.hasCryptor(); err != nil {
+	if err := cli.IsLoggedIn(); err != nil {
 		return err
 	}
 	path := filepath.Join(store, args[0])
@@ -102,7 +115,7 @@ func (cli *Cli) save(args ...string) error {
 		return fmt.Errorf("takes one argument, the filename")
 	}
 
-	if err := cli.hasCryptor(); err != nil {
+	if err := cli.IsLoggedIn(); err != nil {
 		return err
 	}
 
@@ -169,40 +182,48 @@ func (cli *Cli) confirm(question string) bool {
 	}
 }
 
-func (cli *Cli) generatekey(args ...string) error {
-	if len(args) != 2 {
-		return fmt.Errorf("wrong arguments: \n    > generatekey <path> <length>\nif <path> is -, write to stdout")
+func (cli *Cli) generatenewkeys(args ...string) error {
+	if len(args) != 0 {
+		return fmt.Errorf("doesn't take any argument")
 	}
-	path := args[0]
-	keylength, err := strconv.Atoi(args[1])
+
+	fmt.Print("Enter new password: ")
+	password, err := terminal.ReadPassword(int(os.Stdin.Fd()))
+	fmt.Println()
 	if err != nil {
-		return fmt.Errorf("invalid length %q: %s", args[1], err)
+		return fmt.Errorf("reading password from stdin: %s", err)
 	}
 
-	// file exists and user doesn't want to overwrite it
-	if _, err := os.Stat(path); err == nil && !cli.confirm("Overwrite existing file?") {
-		fmt.Println("Abort")
-		return nil
+	fmt.Print("Confirm new password: ")
+	confirm, err := terminal.ReadPassword(int(os.Stdin.Fd()))
+	fmt.Println()
+	if err != nil {
+		return fmt.Errorf("reading confirm from stdin: %s", err)
 	}
 
-	var writer io.Writer
-	if path == "-" {
-		writer = os.Stdout
-	} else {
-		f, err := os.Create(path)
-		if err != nil {
-			return fmt.Errorf("creating file %q: %s", path, err)
+	if !bytes.Equal(confirm, password) {
+		return fmt.Errorf("Passwords don't match")
+	}
+
+	if err := cli.km.GenerateNewKeys(password); err != nil {
+		// FIXME: instead of deleting the keys file, rename to back up file,
+		// like keys#.priv where # is the backup number
+		if errors.Is(err, ErrKeysfileExists) {
+			if !cli.confirm("overwrite keysfile? existing keys will be lost forever") {
+				fmt.Println("Abort")
+				return nil
+			}
+			if err := cli.km.RemoveKeysfile(); err != nil {
+				return err
+			}
+			if err := cli.km.GenerateNewKeys(password); err != nil {
+				return fmt.Errorf("generating new keys: %s", err)
+			}
+		} else {
+			return fmt.Errorf("generate new keys: %s", err)
 		}
-		defer f.Close()
-		writer = f
 	}
-
-	if _, err := io.CopyN(hex.NewEncoder(writer), rand.Reader, int64(keylength)); err != nil {
-		return fmt.Errorf("generating and writing key to file: %s", err)
-	}
-	if writer == os.Stdout {
-		fmt.Println()
-	}
+	fmt.Println("new keys generated successfully")
 	return nil
 }
 
@@ -211,7 +232,7 @@ func (cli *Cli) unhandledCommand(command string, args []string) {
 	fmt.Printf("Command %q doesn't exist\n", command)
 }
 
-func (cli *Cli) hasCryptor() error {
+func (cli *Cli) IsLoggedIn() error {
 	if cli.cryptor == nil {
 		return fmt.Errorf("You need to login first\n    > login")
 	}

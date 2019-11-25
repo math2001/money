@@ -7,6 +7,7 @@ import (
 )
 
 const store = "store"
+const keysFile = "keys.priv"
 
 func main() {
 	fmt.Println("Welcome to Money")

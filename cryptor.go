@@ -12,14 +12,11 @@ import (
 	"crypto/hmac"
 	"crypto/rand"
 	"crypto/sha256"
-	"encoding/hex"
 	"errors"
 	"fmt"
 	"hash"
 	"io"
 	"io/ioutil"
-
-	"golang.org/x/crypto/pbkdf2"
 )
 
 // ErrDifferentMACSum is returned if the mac sum of the file doesn't match
@@ -137,38 +134,18 @@ func (c *Cryptor) Save(filename string, plaintext []byte) error {
 	return c.saveWithIV(filename, plaintext, iv)
 }
 
-// NewCryptor creates a new cryptor from the password (the password is into a
-// valid key using a hex salt specified in a gitignored file) Just create a
-// file in `package main` which defines the constant `hexsalt` to be hex
-// encoded 8 byte random string
-func NewCryptor(password []byte) (*Cryptor, error) {
+// NewCryptor creates a new cryptor which saves/loads encrypted files using
+// the mackey and the enckey
+func NewCryptor(MACKey, encryptionKey []byte) (*Cryptor, error) {
 
-	// FIXME: the salt should be loaded from a file, and if it doesn't exist,
-	// automatically generated
-	salt, err := hex.DecodeString(hexsalt)
-	if err != nil {
-		// FIXME: can the salt be exposed in this error?
-		return nil, fmt.Errorf("loading salt: %s", err)
-	}
-	// FIXME: maybe key should be static
-	// Currently, files is encrypted with password. So, if we change the
-	// password, we can't decrypt the files anymore. So, when changing
-	// password, we'd need to decode everything, and re-encode with the new
-	// password. Instead, we could store a static key in place of the current
-	// password and encrypt/decrypt that key using the real password.
-	key := pbkdf2.Key(password, salt, 4096, 32, sha256.New)
-
-	block, err := aes.NewCipher(key)
+	block, err := aes.NewCipher(encryptionKey)
 	if err != nil {
 		return nil, fmt.Errorf("new cipher: %w", err)
 	}
 
 	return &Cryptor{
 		block: block,
-		// FIXME: the MACKey should be different from the password (completely
-		// independent). Otherwise, our identity will be bound to the password,
-		// meaning we won't be able to change it.
-		mac: hmac.New(sha256.New, password),
+		mac:   hmac.New(sha256.New, MACKey),
 	}, nil
 }
 

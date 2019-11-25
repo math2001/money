@@ -1,3 +1,4 @@
-cryptoconst.go
 money
 store
+*.priv
+cryptoconst.go
