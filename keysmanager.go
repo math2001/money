@@ -31,7 +31,7 @@ type Keys struct {
 	MAC, Encryption []byte
 }
 
-func (km *KeysManager) LoadKeys(password []byte) (Keys, error) {
+func (km *KeysManager) LoadKeys() (Keys, error) {
 	var keys Keys
 
 	f, err := os.Open(km.keysfile)
