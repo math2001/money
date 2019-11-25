@@ -18,15 +18,23 @@ import (
 
 // generates and loads the keys from keys.priv
 
+// ErrKeysfileExists is returned if the keysfile already exists
 var ErrKeysfileExists = errors.New("keysfile already exists")
+
+// ErrNoKeysfile is returned if there is no keysfile to read the keys from
 var ErrNoKeysfile = errors.New("no keysfile")
 
+// KeysManager loads the different keys from a file (keysfile) and decrypts
+// them using the password. It can also generate new keys in place of the old
+// ones
 type KeysManager struct {
 	block    cipher.Block
 	keysfile string
 	keysize  int
 }
 
+// Keys is the object which contains the *decrypted* keys. Plaintext. Be
+// careful
 type Keys struct {
 	MAC, Encryption []byte
 }
@@ -38,6 +46,7 @@ func (k Keys) String() string {
 	return fmt.Sprintf("[secret!] Keys{}")
 }
 
+// LoadKeys loads the keys from the file
 func (km *KeysManager) LoadKeys() (Keys, error) {
 	var keys Keys
 
@@ -120,8 +129,8 @@ func (km *KeysManager) generateHexKey() (string, error) {
 	return hex.EncodeToString(encryptedKey), nil
 }
 
-// GenerateKeys generates the mac and encryption keys, encrypts them and stores
-// them in keysfile
+// GenerateNewKeys generates the mac and encryption keys, encrypts them and
+// stores them in keysfile
 func (km *KeysManager) GenerateNewKeys(password []byte) error {
 	if _, err := os.Stat(km.keysfile); err == nil {
 		return ErrKeysfileExists
@@ -155,6 +164,8 @@ func (km *KeysManager) GenerateNewKeys(password []byte) error {
 	return nil
 }
 
+// RemoveKeysfile deletes the current keysfile. The keys stored will be
+// permanantely lost
 func (km *KeysManager) RemoveKeysfile() error {
 	if err := os.Remove(km.keysfile); err != nil {
 		return fmt.Errorf("removing %q keys file: %s", km.keysfile, err)
@@ -162,7 +173,8 @@ func (km *KeysManager) RemoveKeysfile() error {
 	return nil
 }
 
-// Creates a key manager from the raw user password
+// Login creates the block cipher from the password, which will then be used
+// to decrypt the keys from the file
 func (km *KeysManager) Login(password []byte) error {
 
 	salt, err := hex.DecodeString(hexsalt)
@@ -181,9 +193,11 @@ func (km *KeysManager) Login(password []byte) error {
 	return nil
 }
 
+// NewKeysManager create a new KeysManager with some sane default
 func NewKeysManager() *KeysManager {
 	return &KeysManager{
 		keysfile: "keys.priv",
-		keysize:  32,
+		// FIXME: shouldn't this be 64?
+		keysize: 32,
 	}
 }

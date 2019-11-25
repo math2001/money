@@ -79,7 +79,7 @@ func (cli *Cli) login(args ...string) error {
 	if errors.Is(err, ErrNoKeysfile) {
 		fmt.Println("No keysfile found.")
 		if !cli.confirm("Would you like to generate some new keys?") {
-			return fmt.Errorf("Abort.")
+			return fmt.Errorf("Abort")
 		}
 		cli.generatenewkeys()
 		fmt.Println("You now have to login")
@@ -101,7 +101,7 @@ func (cli *Cli) load(args ...string) error {
 		// FIXME: display usage for this command
 		return fmt.Errorf("load takes one argument, the filename")
 	}
-	if err := cli.IsLoggedIn(); err != nil {
+	if err := cli.isloggedin(); err != nil {
 		return err
 	}
 	path := filepath.Join(store, args[0])
@@ -121,7 +121,7 @@ func (cli *Cli) save(args ...string) error {
 		return fmt.Errorf("takes one argument, the filename")
 	}
 
-	if err := cli.IsLoggedIn(); err != nil {
+	if err := cli.isloggedin(); err != nil {
 		return err
 	}
 
@@ -234,7 +234,7 @@ func (cli *Cli) unhandledCommand(command string, args []string) {
 	fmt.Printf("Command %q doesn't exist\n", command)
 }
 
-func (cli *Cli) IsLoggedIn() error {
+func (cli *Cli) isloggedin() error {
 	if cli.cryptor == nil {
 		return fmt.Errorf("You need to login first\n    > login")
 	}
