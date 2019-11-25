@@ -1,4 +1,3 @@
-- [ ] salt should be in it's own file, and it should be automatically generated if it doesn't exists
 - [ ] validate password
 - [ ] delete a store file
 - [ ] store location should be configurable
@@ -6,3 +5,4 @@
 - [ ] change keys (without changing password)
 
 - [x] fix the test!!
+- [x] salt should be in it's own file, and it should be automatically generated if it doesn't exists

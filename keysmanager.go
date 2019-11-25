@@ -30,6 +30,7 @@ var ErrNoKeysfile = errors.New("no keysfile")
 type KeysManager struct {
 	block    cipher.Block
 	keysfile string
+	saltfile string
 	keysize  int
 }
 
@@ -136,9 +137,8 @@ func (km *KeysManager) GenerateNewKeys(password []byte) error {
 		return ErrKeysfileExists
 	}
 
-	salt, err := hex.DecodeString(hexsalt)
+	salt, err := km.getSalt()
 	if err != nil {
-		// CHECKME: can the salt be exposed in this error?
 		return fmt.Errorf("loading salt: %s", err)
 	}
 	cipherkey := pbkdf2.Key(password, salt, 4096, 32, sha256.New)
@@ -177,9 +177,8 @@ func (km *KeysManager) RemoveKeysfile() error {
 // to decrypt the keys from the file
 func (km *KeysManager) Login(password []byte) error {
 
-	salt, err := hex.DecodeString(hexsalt)
+	salt, err := km.getSalt()
 	if err != nil {
-		// CHECKME: can the salt be exposed in this error?
 		return fmt.Errorf("loading salt: %s", err)
 	}
 	cipherkey := pbkdf2.Key(password, salt, 4096, 32, sha256.New)
@@ -193,11 +192,41 @@ func (km *KeysManager) Login(password []byte) error {
 	return nil
 }
 
+// load salt from file, or generate a new one
+func (km *KeysManager) getSalt() ([]byte, error) {
+	hexsalt, err := ioutil.ReadFile(km.saltfile)
+	if os.IsNotExist(err); err != nil {
+		// generate new salt and store it into file
+		const saltsize = 16
+
+		salt := make([]byte, saltsize)
+		if _, err := io.ReadFull(rand.Reader, salt); err != nil {
+			return nil, fmt.Errorf("generating salt: %s", err)
+		}
+		if err := ioutil.WriteFile(km.saltfile, []byte(hex.EncodeToString(salt)), 0644); err != nil {
+			return nil, fmt.Errorf("writing new salt to saltfile: %s", err)
+		}
+		return salt, nil
+
+	}
+	if err != nil {
+		return nil, fmt.Errorf("reading salt file: %s", err)
+	}
+
+	salt, err := hex.DecodeString(string(hexsalt))
+	if err != nil {
+		return nil, fmt.Errorf("hex decode salt: %s", err)
+	}
+	return salt, nil
+
+}
+
 // NewKeysManager create a new KeysManager with some sane default
 func NewKeysManager() *KeysManager {
 	return &KeysManager{
 		keysfile: "keys.priv",
 		// FIXME: shouldn't this be 64?
-		keysize: 32,
+		keysize:  32,
+		saltfile: "salt",
 	}
 }

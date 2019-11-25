@@ -1,4 +1,4 @@
 money
 store
 *.priv
-cryptoconst.go
+salt
