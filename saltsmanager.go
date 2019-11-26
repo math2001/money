@@ -1,6 +1,7 @@
 package main
 
 import (
+	"bufio"
 	"crypto/rand"
 	"encoding/hex"
 	"errors"
@@ -13,9 +14,9 @@ import (
 )
 
 type SaltsManager struct {
-	saltsize int
-	saltdir  string
-	Salts    *Salts
+	saltsize  int
+	saltsfile string
+	Salts     *Salts
 }
 
 var ErrNoSaltFile = errors.New("no salt file")
@@ -31,6 +32,9 @@ var ErrAlreadyLoaded = errors.New("salts already loaded")
 type Salts struct {
 	cipher, password []byte
 }
+
+// FIXME: use a map internally, and then expose a static, compile-time checked
+// interface
 
 func (s *Salts) Cipher() []byte   { return s.cipher }
 func (s *Salts) Password() []byte { return s.password }
@@ -59,22 +63,6 @@ func (sm *SaltsManager) GenerateNewSalts() error {
 
 	// keep it split up because we will store the salts in a single file
 
-	saveSalt := func(name string, salt []byte) error {
-		if salt == nil {
-			return fmt.Errorf("saving %q: %w", name, ErrNilSalt)
-		}
-
-		path := filepath.Join(sm.saltdir, name)
-
-		// FIXME: use copy and wrap into a hex.NewEncoder. It won't noticeably
-		// improve perfs, but it's cleaner
-		if err := ioutil.WriteFile(path, []byte(hex.EncodeToString(salt)), 0644); err != nil {
-			// CHECKME: should we give the location of the file (ie. path)
-			return fmt.Errorf("writing salt %q: %s", name, err)
-		}
-		return nil
-	}
-
 	// a hack to make sure we don't forget to save the salt
 	if reflect.TypeOf(sm.Salts).NumField() != 2 {
 		// if you get this error, you need to make sure that you save the new
@@ -85,12 +73,11 @@ func (sm *SaltsManager) GenerateNewSalts() error {
 		panic("[internal] a new salt has been added, but the save function wasn't updated")
 	}
 
-	if err := saveSalt("cipher", sm.Salts.Cipher()); err != nil {
-		return err
+	salts := fmt.Sprintf("%s\n%s\n", sm.Salts.Cipher(), sm.Salts.Password())
+	if err := ioutil.WriteFile(sm.saltsfile, []byte(salts), 0644); err != nil {
+		return fmt.Errorf("writing salts to file system: %s", err)
 	}
-	if err := saveSalt("password", sm.Salts.Password()); err != nil {
-		return err
-	}
+
 	return nil
 }
 
@@ -99,32 +86,27 @@ func (sm *SaltsManager) LoadSalts() error {
 		return ErrAlreadyLoaded
 	}
 
-	getSalt := func(name string) ([]byte, error) {
-		path := filepath.Join(sm.saltdir, name)
+	f, err := os.Open(sm.saltsfile)
+	if err != nil {
+		return fmt.Errorf("opening saltsfile: %s", err)
+	}
+	reader := bufio.NewReader(f)
 
-		hexsalt, err := ioutil.ReadFile(path)
-		if os.IsNotExist(err) {
-			return nil, fmt.Errorf("%q %w", name, ErrNoSaltFile)
-		}
-		if err != nil {
-			return nil, fmt.Errorf("reading salt file: %s", err)
-		}
-		salt, err := hex.DecodeString(string(hexsalt))
-		if err != nil {
-			return nil, fmt.Errorf("decoding salt: %s", err)
-		}
-		return salt, nil
+	hexcipher, err := reader.ReadString('\n')
+	if err != nil {
+		return fmt.Errorf("reading cipher salt: %s", err)
 	}
 
-	// a hack to make sure we don't forget to save the salt. See Save method
-	if reflect.TypeOf(sm.Salts).NumField() != 2 {
-		panic("[internal] a new salt has been added, but the save function wasn't updated")
+	hexpassword, err := reader.ReadString('\n')
+	if err != nil {
+		return fmt.Errorf("reading password salt: %s", err)
 	}
-	cipher, err := getSalt("cipher")
+
+	cipher, err := hex.DecodeString(hexcipher)
 	if err != nil {
 		return err
 	}
-	password, err := getSalt("password")
+	password, err := hex.DecodeString(hexpassword)
 	if err != nil {
 		return err
 	}
@@ -147,7 +129,7 @@ func (sm *SaltsManager) RefreshSalts() {
 // NewSaltsManager returns a salt manager with some sane defaults
 func NewSaltsManager(privroot string) *SaltsManager {
 	return &SaltsManager{
-		saltsize: 16,
-		saltdir:  filepath.Join(privroot, "salts"),
+		saltsize:  16,
+		saltsfile: filepath.Join(privroot, "salts"),
 	}
 }
