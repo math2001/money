@@ -2,3 +2,4 @@ money
 store
 *.priv
 salt
+priv/

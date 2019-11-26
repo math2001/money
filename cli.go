@@ -32,7 +32,11 @@ func (cli *Cli) Start() {
 		"save":  cli.save,
 	}
 
-	cli.km = NewKeysManager()
+	var err error
+	cli.km, err = NewKeysManager()
+	if err != nil {
+		log.Fatalf("create keys manager: %s", err)
+	}
 
 	cli.reader = bufio.NewReader(os.Stdin)
 	for {

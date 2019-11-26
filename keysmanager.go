@@ -2,6 +2,7 @@ package main
 
 import (
 	"bufio"
+	"bytes"
 	"crypto/aes"
 	"crypto/cipher"
 	"crypto/rand"
@@ -12,11 +13,10 @@ import (
 	"io"
 	"io/ioutil"
 	"os"
+	"path/filepath"
 
 	"golang.org/x/crypto/pbkdf2"
 )
-
-// generates and loads the keys from keys.priv
 
 // ErrKeysfileExists is returned if the keysfile already exists
 var ErrKeysfileExists = errors.New("keysfile already exists")
@@ -24,18 +24,22 @@ var ErrKeysfileExists = errors.New("keysfile already exists")
 // ErrNoKeysfile is returned if there is no keysfile to read the keys from
 var ErrNoKeysfile = errors.New("no keysfile")
 
+// ErrWrongPassword is returned when the hash store hashpasswordfile doesn't
+// match with the hash of the typed password. See Login function
+var ErrWrongPassword = errors.New("wrong password")
+
 // KeysManager loads the different keys from a file (keysfile) and decrypts
 // them using the password. It can also generate new keys in place of the old
 // ones
 type KeysManager struct {
-	block    cipher.Block
-	keysfile string
-	saltfile string
-	keysize  int
+	block                       cipher.Block
+	privroot, keysfile, saltdir string
+	passwordhashfile            string
+	keysize                     int
+	saltsmanager                *SaltsManager
 }
 
-// Keys is the object which contains the *decrypted* keys. Plaintext. Be
-// careful
+// Keys contains the *decrypted* keys. Plaintext. Be careful
 type Keys struct {
 	MAC, Encryption []byte
 }
@@ -72,7 +76,7 @@ func (km *KeysManager) LoadKeys() (Keys, error) {
 		if err != nil {
 			return keys, fmt.Errorf("Decode hex key: %s", err)
 		}
-		decryptedKey, err := km.decryptkey(keyEncrypted)
+		decryptedKey, err := km.decryptKey(keyEncrypted)
 		if err != nil {
 			return keys, fmt.Errorf("decrypting key: %s", err)
 		}
@@ -89,7 +93,7 @@ func (km *KeysManager) LoadKeys() (Keys, error) {
 	return keys, nil
 }
 
-func (km *KeysManager) decryptkey(ciphertext []byte) ([]byte, error) {
+func (km *KeysManager) decryptKey(ciphertext []byte) ([]byte, error) {
 	if len(ciphertext)%km.block.BlockSize() != 0 {
 		// CHECKME: can I safely give more information here?
 		return nil, fmt.Errorf("length should be a multiple of blocksize")
@@ -110,18 +114,14 @@ func (km *KeysManager) decryptkey(ciphertext []byte) ([]byte, error) {
 	return keyDecrypted, nil
 }
 
-func (km *KeysManager) generateHexKey() (string, error) {
-	decryptedKey := make([]byte, km.keysize)
-
-	if _, err := io.ReadFull(rand.Reader, decryptedKey); err != nil {
-		return "", fmt.Errorf("generating key: %s", err)
-	}
-
-	encryptedKey := make([]byte, km.keysize+km.block.BlockSize())
+// encryptKey encrypts the given key with the current cipher, and then hex
+// encodes it
+func (km *KeysManager) encryptKey(decryptedKey []byte) (string, error) {
+	encryptedKey := make([]byte, len(decryptedKey)+km.block.BlockSize())
 
 	iv := encryptedKey[:km.block.BlockSize()]
 	if _, err := io.ReadFull(rand.Reader, iv); err != nil {
-		return "", fmt.Errorf("generating iv: %s", err)
+		return "", fmt.Errorf("generating iv to encrypt key: %s", err)
 	}
 
 	mode := cipher.NewCBCEncrypter(km.block, iv)
@@ -130,23 +130,36 @@ func (km *KeysManager) generateHexKey() (string, error) {
 	return hex.EncodeToString(encryptedKey), nil
 }
 
+// generateHexKey create a new key, encrypts it with the current block cipher,
+// and then hex encodes it
+// FIXME: this is a really bad name, we don't understand that it is being
+// securely encrypted from it.
+func (km *KeysManager) generateHexKey() (string, error) {
+	decryptedKey := make([]byte, km.keysize)
+
+	if _, err := io.ReadFull(rand.Reader, decryptedKey); err != nil {
+		return "", fmt.Errorf("generating key: %s", err)
+	}
+
+	return km.encryptKey(decryptedKey)
+}
+
 // GenerateNewKeys generates the mac and encryption keys, encrypts them and
 // stores them in keysfile
+// FIXME: this function shouldn't be exposed...
 func (km *KeysManager) GenerateNewKeys(password []byte) error {
 	if _, err := os.Stat(km.keysfile); err == nil {
 		return ErrKeysfileExists
 	}
 
-	salt, err := km.getSalt()
-	if err != nil {
-		return fmt.Errorf("loading salt: %s", err)
-	}
-	cipherkey := pbkdf2.Key(password, salt, 4096, 32, sha256.New)
+	cipherkey := pbkdf2.Key(password, km.saltsmanager.Salts.Cipher(), 4096, 32, sha256.New)
 
-	km.block, err = aes.NewCipher(cipherkey)
+	cipher, err := aes.NewCipher(cipherkey)
 	if err != nil {
 		return fmt.Errorf("initiating new cipher: %s", err)
 	}
+	// do it in two steps to not erase km.block in case there is an error
+	km.block = cipher
 
 	MACKey, err := km.generateHexKey()
 	if err != nil {
@@ -173,15 +186,126 @@ func (km *KeysManager) RemoveKeysfile() error {
 	return nil
 }
 
+// ChangePassword changes the user's password. Note that the user must already
+// be logged in. If it isn't case, use set password
+func (km *KeysManager) ChangePassword(newpassword []byte) error {
+	keys, err := km.LoadKeys()
+	if err != nil {
+		return fmt.Errorf("loading keys: %s", err)
+	}
+
+	// replace cipher(currentpassword) with a cipher(newpassword)
+
+	cipherkey := pbkdf2.Key(newpassword, km.saltsmanager.Salts.Cipher(), 4096, 32, sha256.New)
+
+	cipher, err := aes.NewCipher(cipherkey)
+	if err != nil {
+		return fmt.Errorf("creating cipher: %s", err)
+	}
+	// we do this in two steps (cipher = Cipher() then km.block = cipher) so
+	// that we don't set km.block to nil if aes.NewCipher fails. It makes sense
+	// because if we fail here, the only action that fails is the ChangePassword
+	// action, not the entire app.
+	km.block = cipher
+
+	// FIXME: how can we make sure here that all the keys are updated?
+	// (ie. for example if we add a field to Keys, how can we write some code
+	// that will generate an error if we have a third field in Keys but only update two here)
+	MACKey, err := km.encryptKey(keys.MAC)
+	if err != nil {
+		return fmt.Errorf("encrypting keys with new password: %s", err)
+	}
+	encryptionKey, err := km.encryptKey(keys.MAC)
+	if err != nil {
+		return fmt.Errorf("encrypting keys with new password: %s", err)
+	}
+
+	// encrypt the current keys with the new password
+	content := []byte(fmt.Sprintf("%s\n%s\n", MACKey, encryptionKey))
+	if err := ioutil.WriteFile(km.keysfile, content, 0644); err != nil {
+		return fmt.Errorf("writing keysfile: %s", err)
+	}
+	return nil
+}
+
+// SignUp makes the priv directory, creates the salts, password hash file and
+// keys
+func (km *KeysManager) SignUp(password []byte) error {
+
+	if err := os.MkdirAll(km.privroot, 0755); err != nil {
+		return fmt.Errorf("making privroot directory %q: %s", km.privroot, err)
+	}
+
+	if err := km.saltsmanager.GenerateNewSalts(); err != nil {
+		return fmt.Errorf("generating salts: %s", err)
+	}
+
+	passwordhash := pbkdf2.Key(password, km.saltsmanager.Salts.Password(), 4096, 32, sha256.New)
+	if err := ioutil.WriteFile(km.passwordhashfile, []byte(hex.EncodeToString(passwordhash)), 0644); err != nil {
+		return fmt.Errorf("writing password hash to file: %s", err)
+	}
+
+	if err := km.GenerateNewKeys(password); err != nil {
+		return fmt.Errorf("generating new keys: %s", err)
+	}
+
+	cipherkey := pbkdf2.Key(password, km.saltsmanager.Salts.Cipher(), 4096, 32, sha256.New)
+
+	cipher, err := aes.NewCipher(cipherkey)
+	if err != nil {
+		return fmt.Errorf("creating cipher: %s", err)
+	}
+
+	km.block = cipher
+
+	return nil
+}
+
+// FIXME: how do you transfer keys? Just copy paste the priv/ folder?
+
 // Login creates the block cipher from the password, which will then be used
 // to decrypt the keys from the file
 func (km *KeysManager) Login(password []byte) error {
 
-	salt, err := km.getSalt()
-	if err != nil {
-		return fmt.Errorf("loading salt: %s", err)
+	// check that the password's hash matches the hash stored in passwordhashfile
+	// this is just extra feature to error as early as possible if the password
+	// is wrong. We could not do this step, and let the user log in with a
+	// wrong password: he decrypt his keys wrongly, and hence wouldn't be able
+	// to retrieve the original content from his files (padding error, or if
+	// he is lucky, gibberish)
+
+	if err := km.saltsmanager.LoadSalts(); err != nil {
+		return fmt.Errorf("loading salts: %s", err)
 	}
-	cipherkey := pbkdf2.Key(password, salt, 4096, 32, sha256.New)
+
+	hexpasswordhash, err := ioutil.ReadFile(km.passwordhashfile)
+	if os.IsNotExist(err) {
+		fmt.Println("No hash file to compare password against.")
+		// FIXME: what should we do here? Store the new password in hashfile
+		// and keep going? What if it's wrong? next time the user tries to log
+		// in with the right password, they'll be kicked out! Maybe we should
+		// have a second command, like login-force, which wouldn't have this
+		// checking feature
+		return fmt.Errorf("not implemented")
+	}
+	if err != nil {
+		return fmt.Errorf("reading from password hash file: %s", err)
+	}
+
+	passwordhash, err := hex.DecodeString(string(hexpasswordhash))
+	if err != nil {
+		return fmt.Errorf("decoding hex password hash: %s", err)
+	}
+
+	if !bytes.Equal(passwordhash, pbkdf2.Key(password, km.saltsmanager.Salts.Password(), 4096, 32, sha256.New)) {
+		// that doesn't *actually* mean that the password is wrong. It could
+		// be that the stored hash is wrong, the that this password would sill
+		// succesfully decode the files. This however shouldn't happen, check
+		// FIXME above
+		return ErrWrongPassword
+	}
+
+	cipherkey := pbkdf2.Key(password, km.saltsmanager.Salts.Cipher(), 4096, 32, sha256.New)
 
 	cipher, err := aes.NewCipher(cipherkey)
 	if err != nil {
@@ -192,41 +316,62 @@ func (km *KeysManager) Login(password []byte) error {
 	return nil
 }
 
-// load salt from file, or generate a new one
-func (km *KeysManager) getSalt() ([]byte, error) {
-	hexsalt, err := ioutil.ReadFile(km.saltfile)
-	if os.IsNotExist(err); err != nil {
-		// generate new salt and store it into file
-		const saltsize = 16
+// load salt <name> from file, or generate a new one
+// there are currently two salts: one to generate the cipher key ('cipher'),
+// and one to generate a hash which we use to compare the password against
+// ('password') (this is just used to detect as early as possible whether the
+// password is correct or not. Without the right password, you could "login"
+// but decrypting would give you padding errors, or if you're lucky, gibberish)
+// FIXME: salts should be a struct, not accessable by strings like this...
+// func (km *KeysManager) getSalt(name string) ([]byte, error) {
 
-		salt := make([]byte, saltsize)
-		if _, err := io.ReadFull(rand.Reader, salt); err != nil {
-			return nil, fmt.Errorf("generating salt: %s", err)
-		}
-		if err := ioutil.WriteFile(km.saltfile, []byte(hex.EncodeToString(salt)), 0644); err != nil {
-			return nil, fmt.Errorf("writing new salt to saltfile: %s", err)
-		}
-		return salt, nil
+// 	path := filepath.Join(km.saltdir, name)
+// 	hexsalt, err := ioutil.ReadFile(path)
 
-	}
-	if err != nil {
-		return nil, fmt.Errorf("reading salt file: %s", err)
-	}
+// 	if os.IsNotExist(err) {
+// 		return nil, fmt.Errorf("no saltfile. Did you sign up? Forgot to copy the priv/ folder? %s", err)
+// 	}
 
-	salt, err := hex.DecodeString(string(hexsalt))
-	if err != nil {
-		return nil, fmt.Errorf("hex decode salt: %s", err)
-	}
-	return salt, nil
+// 	if err != nil {
+// 		return nil, fmt.Errorf("reading salt file: %s", err)
+// 	}
 
-}
+// 	salt, err := hex.DecodeString(string(hexsalt))
+// 	if err != nil {
+// 		return nil, fmt.Errorf("hex decode salt: %s", err)
+// 	}
+
+// 	return salt, nil
+// }
 
 // NewKeysManager create a new KeysManager with some sane default
-func NewKeysManager() *KeysManager {
-	return &KeysManager{
-		keysfile: "keys.priv",
-		// FIXME: shouldn't this be 64?
+func NewKeysManager() (*KeysManager, error) {
+
+	// the files in the priv folder don't *have* to be secret. Technically, you
+	// could share it with everyone, and this application should still be
+	// secure. However, it would make an attacker's job easier if he had
+	// acccess to them.
+
+	// keys.priv: the keys are encrypted with the user's password. Those keys
+	// are what Cryptor uses to encrypt user files
+
+	// salts: salts just have to be unique to fight against rainbow tables. If
+	// an attacker had access to those files before actually breaking into the
+	// application, he could generate a table of hashes using that salt to very
+	// quickly find the user's password (provided the it is somewhat common)
+
+	// passwordhash.priv: this is just a hash of the user's password. It is
+	// technically secure, but best kept secret.
+
+	km := &KeysManager{
+		privroot: "priv",
 		keysize:  32,
-		saltfile: "salt",
 	}
+
+	km.keysfile = filepath.Join(km.privroot, "keys.priv")
+	km.saltdir = filepath.Join(km.privroot, "salts")
+	km.passwordhashfile = filepath.Join(km.privroot, "passwordhash.priv")
+	km.saltsmanager = NewSaltsManager(km.privroot)
+
+	return km, nil
 }
