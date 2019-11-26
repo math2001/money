@@ -76,6 +76,9 @@ func (cli *Cli) login(args ...string) error {
 	}
 
 	if err := cli.km.Login(password); err != nil {
+		if errors.Is(err, ErrNoSaltsFile) {
+			return fmt.Errorf("no saltfile. Did you sign up? Forgot to copy the priv/ folder? Maybe it's corrupted. Error: %s", err)
+		}
 		return fmt.Errorf("login in keys manager: %s", err)
 	}
 

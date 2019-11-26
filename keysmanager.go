@@ -28,6 +28,10 @@ var ErrNoKeysfile = errors.New("no keysfile")
 // match with the hash of the typed password. See Login function
 var ErrWrongPassword = errors.New("wrong password")
 
+// ErrAlreadyLoggedIn is returned by Login when the user tries to log in
+// multiple twice
+var ErrAlreadyLoggedIn = errors.New("already logged in")
+
 // KeysManager loads the different keys from a file (keysfile) and decrypts
 // them using the password. It can also generate new keys in place of the old
 // ones
@@ -36,7 +40,7 @@ type KeysManager struct {
 	privroot, keysfile, saltdir string
 	passwordhashfile            string
 	keysize                     int
-	saltsmanager                *SaltsManager
+	salts                       *Salts
 }
 
 // Keys contains the *decrypted* keys. Plaintext. Be careful
@@ -152,7 +156,7 @@ func (km *KeysManager) GenerateNewKeys(password []byte) error {
 		return ErrKeysfileExists
 	}
 
-	cipherkey := pbkdf2.Key(password, km.saltsmanager.Salts.Cipher(), 4096, 32, sha256.New)
+	cipherkey := pbkdf2.Key(password, km.salts.Cipher, 4096, 32, sha256.New)
 
 	cipher, err := aes.NewCipher(cipherkey)
 	if err != nil {
@@ -196,7 +200,7 @@ func (km *KeysManager) ChangePassword(newpassword []byte) error {
 
 	// replace cipher(currentpassword) with a cipher(newpassword)
 
-	cipherkey := pbkdf2.Key(newpassword, km.saltsmanager.Salts.Cipher(), 4096, 32, sha256.New)
+	cipherkey := pbkdf2.Key(newpassword, km.salts.Cipher, 4096, 32, sha256.New)
 
 	cipher, err := aes.NewCipher(cipherkey)
 	if err != nil {
@@ -236,11 +240,13 @@ func (km *KeysManager) SignUp(password []byte) error {
 		return fmt.Errorf("making privroot directory %q: %s", km.privroot, err)
 	}
 
-	if err := km.saltsmanager.GenerateNewSalts(); err != nil {
+	var err error
+	km.salts, err = GenerateNewSalts()
+	if err != nil {
 		return fmt.Errorf("generating salts: %s", err)
 	}
 
-	passwordhash := pbkdf2.Key(password, km.saltsmanager.Salts.Password(), 4096, 32, sha256.New)
+	passwordhash := pbkdf2.Key(password, km.salts.Password, 4096, 32, sha256.New)
 	if err := ioutil.WriteFile(km.passwordhashfile, []byte(hex.EncodeToString(passwordhash)), 0644); err != nil {
 		return fmt.Errorf("writing password hash to file: %s", err)
 	}
@@ -249,7 +255,7 @@ func (km *KeysManager) SignUp(password []byte) error {
 		return fmt.Errorf("generating new keys: %s", err)
 	}
 
-	cipherkey := pbkdf2.Key(password, km.saltsmanager.Salts.Cipher(), 4096, 32, sha256.New)
+	cipherkey := pbkdf2.Key(password, km.salts.Cipher, 4096, 32, sha256.New)
 
 	cipher, err := aes.NewCipher(cipherkey)
 	if err != nil {
@@ -267,16 +273,22 @@ func (km *KeysManager) SignUp(password []byte) error {
 // to decrypt the keys from the file
 func (km *KeysManager) Login(password []byte) error {
 
+	if km.block != nil {
+		return ErrAlreadyLoggedIn
+	}
+
+	var err error
+	km.salts, err = LoadSalts()
+	if err != nil {
+		return fmt.Errorf("loading salts: %w", err)
+	}
+
 	// check that the password's hash matches the hash stored in passwordhashfile
 	// this is just extra feature to error as early as possible if the password
 	// is wrong. We could not do this step, and let the user log in with a
 	// wrong password: he decrypt his keys wrongly, and hence wouldn't be able
 	// to retrieve the original content from his files (padding error, or if
 	// he is lucky, gibberish)
-
-	if err := km.saltsmanager.LoadSalts(); err != nil {
-		return fmt.Errorf("loading salts: %s", err)
-	}
 
 	hexpasswordhash, err := ioutil.ReadFile(km.passwordhashfile)
 	if os.IsNotExist(err) {
@@ -297,7 +309,7 @@ func (km *KeysManager) Login(password []byte) error {
 		return fmt.Errorf("decoding hex password hash: %s", err)
 	}
 
-	if !bytes.Equal(passwordhash, pbkdf2.Key(password, km.saltsmanager.Salts.Password(), 4096, 32, sha256.New)) {
+	if !bytes.Equal(passwordhash, pbkdf2.Key(password, km.salts.Password, 4096, 32, sha256.New)) {
 		// that doesn't *actually* mean that the password is wrong. It could
 		// be that the stored hash is wrong, the that this password would sill
 		// succesfully decode the files. This however shouldn't happen, check
@@ -305,7 +317,7 @@ func (km *KeysManager) Login(password []byte) error {
 		return ErrWrongPassword
 	}
 
-	cipherkey := pbkdf2.Key(password, km.saltsmanager.Salts.Cipher(), 4096, 32, sha256.New)
+	cipherkey := pbkdf2.Key(password, km.salts.Cipher, 4096, 32, sha256.New)
 
 	cipher, err := aes.NewCipher(cipherkey)
 	if err != nil {
@@ -315,34 +327,6 @@ func (km *KeysManager) Login(password []byte) error {
 	km.block = cipher
 	return nil
 }
-
-// load salt <name> from file, or generate a new one
-// there are currently two salts: one to generate the cipher key ('cipher'),
-// and one to generate a hash which we use to compare the password against
-// ('password') (this is just used to detect as early as possible whether the
-// password is correct or not. Without the right password, you could "login"
-// but decrypting would give you padding errors, or if you're lucky, gibberish)
-// FIXME: salts should be a struct, not accessable by strings like this...
-// func (km *KeysManager) getSalt(name string) ([]byte, error) {
-
-// 	path := filepath.Join(km.saltdir, name)
-// 	hexsalt, err := ioutil.ReadFile(path)
-
-// 	if os.IsNotExist(err) {
-// 		return nil, fmt.Errorf("no saltfile. Did you sign up? Forgot to copy the priv/ folder? %s", err)
-// 	}
-
-// 	if err != nil {
-// 		return nil, fmt.Errorf("reading salt file: %s", err)
-// 	}
-
-// 	salt, err := hex.DecodeString(string(hexsalt))
-// 	if err != nil {
-// 		return nil, fmt.Errorf("hex decode salt: %s", err)
-// 	}
-
-// 	return salt, nil
-// }
 
 // NewKeysManager create a new KeysManager with some sane default
 func NewKeysManager() (*KeysManager, error) {
@@ -371,7 +355,6 @@ func NewKeysManager() (*KeysManager, error) {
 	km.keysfile = filepath.Join(km.privroot, "keys.priv")
 	km.saltdir = filepath.Join(km.privroot, "salts")
 	km.passwordhashfile = filepath.Join(km.privroot, "passwordhash.priv")
-	km.saltsmanager = NewSaltsManager(km.privroot)
 
 	return km, nil
 }
