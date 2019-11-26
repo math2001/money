@@ -24,18 +24,30 @@ type Cli struct {
 
 // Start the CLI application
 func (cli *Cli) Start() {
+
 	cli.commands = map[string]func(...string) error{
-		"login": cli.login,
-		"help":  cli.help,
-		"ls":    cli.ls,
-		"load":  cli.load,
-		"save":  cli.save,
+		"help": cli.help,
+		"ls":   cli.ls,
+		"load": cli.load,
+		"save": cli.save,
 	}
 
 	var err error
 	cli.km, err = NewKeysManager()
 	if err != nil {
 		log.Fatalf("create keys manager: %s", err)
+	}
+
+	if cli.km.HasSignedUp() {
+		fmt.Println("Log in")
+		if err := cli.login(); err != nil {
+			log.Fatalf("logging in: %s", err)
+		}
+	} else {
+		fmt.Println("We will create your account, please sign up")
+		if err := cli.signup(); err != nil {
+			log.Fatalf("signing up: %s", err)
+		}
 	}
 
 	cli.reader = bufio.NewReader(os.Stdin)
@@ -63,11 +75,7 @@ func (cli *Cli) Start() {
 	}
 }
 
-func (cli *Cli) login(args ...string) error {
-	if len(args) != 0 {
-		return fmt.Errorf("login doesn't take any argument")
-	}
-	// FIXME: check km.HasKeysfile before asking for a password
+func (cli *Cli) login() error {
 	fmt.Print("Enter password: ")
 	password, err := terminal.ReadPassword(int(os.Stdin.Fd()))
 	fmt.Println()
@@ -75,25 +83,21 @@ func (cli *Cli) login(args ...string) error {
 		return fmt.Errorf("reading password from stdin: %s", err)
 	}
 
-	if err := cli.km.Login(password); err != nil {
-		if errors.Is(err, ErrNoSaltsFile) {
-			return fmt.Errorf("no saltfile. Did you sign up? Forgot to copy the priv/ folder? Maybe it's corrupted. Error: %s", err)
-		}
+	err = cli.km.Login(password)
+	if errors.Is(err, ErrNoSaltsFile) {
+		return fmt.Errorf("Your private folder is corrupted (%w)", err)
+	}
+	if err != nil {
 		return fmt.Errorf("login in keys manager: %s", err)
 	}
 
 	keys, err := cli.km.LoadKeys()
 	if errors.Is(err, ErrNoKeysfile) {
-		fmt.Println("No keysfile found.")
-		if !cli.confirm("Would you like to generate some new keys?") {
-			return fmt.Errorf("Abort")
-		}
-		cli.generatenewkeys()
-		fmt.Println("You now have to login")
-		return cli.login()
+		return fmt.Errorf("Your private folder is corrupted (%w)", err)
 	}
+
 	if err != nil {
-		return fmt.Errorf("loading keys from password: %s", err)
+		return fmt.Errorf("loading keys: %s", err)
 	}
 
 	cli.cryptor, err = NewCryptor(keys.MAC, keys.Encryption)
@@ -103,13 +107,57 @@ func (cli *Cli) login(args ...string) error {
 	return nil
 }
 
+func (cli *Cli) signup(args ...string) error {
+	if len(args) != 0 {
+		return fmt.Errorf("signup doesn't take any arguments")
+	}
+
+	password, err := cli.askpassword("Enter password")
+	if err != nil {
+		return err
+	}
+	confirm, err := cli.askpassword("Confirm password")
+	if err != nil {
+		return err
+	}
+
+	if !bytes.Equal(password, confirm) {
+		// FIXME: should this be an ErrPasswordsDontMatch?
+		return fmt.Errorf("passwords don't match, please try again")
+	}
+
+	if err := cli.km.SignUp(password); err != nil {
+		return fmt.Errorf("signing up: %s", err)
+	}
+
+	keys, err := cli.km.LoadKeys()
+	if err != nil {
+		return fmt.Errorf("loading keys: %s", err)
+	}
+
+	cli.cryptor, err = NewCryptor(keys.MAC, keys.Encryption)
+	if err != nil {
+		return fmt.Errorf("creating cryptor: %s", err)
+	}
+
+	fmt.Println("successfully created your account!")
+	return nil
+}
+
+func (cli *Cli) askpassword(message string) ([]byte, error) {
+	fmt.Printf("%s: ", message)
+	password, err := terminal.ReadPassword(int(os.Stdin.Fd()))
+	fmt.Println()
+	if err != nil {
+		return nil, fmt.Errorf("reading password from stdin: %s", err)
+	}
+	return password, nil
+}
+
 func (cli *Cli) load(args ...string) error {
 	if len(args) != 1 {
 		// FIXME: display usage for this command
 		return fmt.Errorf("load takes one argument, the filename")
-	}
-	if err := cli.isloggedin(); err != nil {
-		return err
 	}
 	path := filepath.Join(store, args[0])
 	content, err := cli.cryptor.Load(path)
@@ -126,10 +174,6 @@ func (cli *Cli) load(args ...string) error {
 func (cli *Cli) save(args ...string) error {
 	if len(args) != 1 {
 		return fmt.Errorf("takes one argument, the filename")
-	}
-
-	if err := cli.isloggedin(); err != nil {
-		return err
 	}
 
 	path := filepath.Join(store, args[0])
@@ -239,13 +283,6 @@ func (cli *Cli) generatenewkeys() error {
 func (cli *Cli) unhandledCommand(command string, args []string) {
 	// FIXME: look up similar commands
 	fmt.Printf("Command %q doesn't exist\n", command)
-}
-
-func (cli *Cli) isloggedin() error {
-	if cli.cryptor == nil {
-		return fmt.Errorf("You need to login first\n    > login")
-	}
-	return nil
 }
 
 func parse(instructionline string) (string, []string) {

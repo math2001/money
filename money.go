@@ -10,7 +10,9 @@ const store = "store"
 const keysFile = "keys.priv"
 
 func main() {
-	fmt.Println("Welcome to Money")
+	fmt.Println("Welcome to Money! [cli mode]")
+	fmt.Println("============================")
+	fmt.Println()
 
 	// FIXME: how can we make sure that the user can easily check that *this*
 	// program is asking for the password, and some other random thing?

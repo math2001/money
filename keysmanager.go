@@ -32,6 +32,9 @@ var ErrWrongPassword = errors.New("wrong password")
 // multiple twice
 var ErrAlreadyLoggedIn = errors.New("already logged in")
 
+// ErrAlreadySignedUp is returned by SignUp when the user tries to sign up again
+var ErrAlreadySignedUp = errors.New("already signed up")
+
 // KeysManager loads the different keys from a file (keysfile) and decrypts
 // them using the password. It can also generate new keys in place of the old
 // ones
@@ -236,12 +239,15 @@ func (km *KeysManager) ChangePassword(newpassword []byte) error {
 // keys
 func (km *KeysManager) SignUp(password []byte) error {
 
-	if err := os.MkdirAll(km.privroot, 0755); err != nil {
+	err := os.Mkdir(km.privroot, 0755)
+	if os.IsExist(err) {
+		return ErrAlreadySignedUp
+	}
+	if err != nil {
 		return fmt.Errorf("making privroot directory %q: %s", km.privroot, err)
 	}
 
-	var err error
-	km.salts, err = GenerateNewSalts()
+	km.salts, err = GenerateNewSalts(km.privroot)
 	if err != nil {
 		return fmt.Errorf("generating salts: %s", err)
 	}
@@ -273,12 +279,13 @@ func (km *KeysManager) SignUp(password []byte) error {
 // to decrypt the keys from the file
 func (km *KeysManager) Login(password []byte) error {
 
+	// FIXME: export this to a function IsLoggedIn? How else could we check?
 	if km.block != nil {
 		return ErrAlreadyLoggedIn
 	}
 
 	var err error
-	km.salts, err = LoadSalts()
+	km.salts, err = LoadSalts(km.privroot)
 	if err != nil {
 		return fmt.Errorf("loading salts: %w", err)
 	}
@@ -328,6 +335,16 @@ func (km *KeysManager) Login(password []byte) error {
 	return nil
 }
 
+// HasSignedUp returns true of the privroot directory exists, even if we can't
+// read from it. That's because if the user doesn't have the permission for
+// example, he won't be able to create his priv directory by signing up.
+// So, we let .SignUp report the error, because it will know best what to do
+// based on the error (whereas this function is just general-purposed)
+func (km *KeysManager) HasSignedUp() bool {
+	_, err := os.Stat(km.privroot)
+	return err == nil || os.IsExist(err)
+}
+
 // NewKeysManager create a new KeysManager with some sane default
 func NewKeysManager() (*KeysManager, error) {
 
@@ -346,6 +363,8 @@ func NewKeysManager() (*KeysManager, error) {
 
 	// passwordhash.priv: this is just a hash of the user's password. It is
 	// technically secure, but best kept secret.
+
+	// FIXME: the user should be able to give a custom priv root
 
 	km := &KeysManager{
 		privroot: "priv",

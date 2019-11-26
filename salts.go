@@ -9,21 +9,19 @@ import (
 	"io"
 	"io/ioutil"
 	"os"
+	"path/filepath"
 )
 
 const saltsfile = "salts"
 
 var ErrNoSaltsFile = errors.New("no saltsfile")
 
-// FIXME: use a map internally, and then expose a static, compile-time checked
-// interface
-
 // Salts containts the *decrypted* salts
 type Salts struct {
 	Cipher, Password []byte
 }
 
-func GenerateNewSalts() (*Salts, error) {
+func GenerateNewSalts(privroot string) (*Salts, error) {
 	generateNewSalt := func() ([]byte, error) {
 		const saltsize = 16
 		salt := make([]byte, saltsize)
@@ -35,7 +33,7 @@ func GenerateNewSalts() (*Salts, error) {
 
 	var err error
 	// Wait does that work? no nil pointer?
-	var salts *Salts
+	salts := &Salts{}
 	salts.Cipher, err = generateNewSalt()
 	if err != nil {
 		return nil, err
@@ -45,17 +43,18 @@ func GenerateNewSalts() (*Salts, error) {
 		return nil, err
 	}
 
-	content := []byte(fmt.Sprintf("%s\n%s\n", salts.Cipher, salts.Password))
-	if err := ioutil.WriteFile(saltsfile, content, 0644); err != nil {
+	path := filepath.Join(privroot, saltsfile)
+	content := []byte(fmt.Sprintf("%x\n%x\n", salts.Cipher, salts.Password))
+	if err := ioutil.WriteFile(path, content, 0644); err != nil {
 		return nil, fmt.Errorf("writing salts to file system: %s", err)
 	}
 
 	return salts, nil
 }
 
-func LoadSalts() (*Salts, error) {
+func LoadSalts(privroot string) (*Salts, error) {
 
-	f, err := os.Open(saltsfile)
+	f, err := os.Open(filepath.Join(privroot, saltsfile))
 
 	if os.IsNotExist(err) {
 		return nil, ErrNoSaltsFile
@@ -76,12 +75,12 @@ func LoadSalts() (*Salts, error) {
 		return nil, fmt.Errorf("reading password salt: %s", err)
 	}
 
-	var salts *Salts
-	salts.Cipher, err = hex.DecodeString(hexcipher)
+	salts := &Salts{}
+	salts.Cipher, err = hex.DecodeString(hexcipher[:len(hexcipher)-1])
 	if err != nil {
 		return nil, err
 	}
-	salts.Password, err = hex.DecodeString(hexpassword)
+	salts.Password, err = hex.DecodeString(hexpassword[:len(hexpassword)-1])
 	if err != nil {
 		return nil, err
 	}
