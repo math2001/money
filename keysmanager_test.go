@@ -45,7 +45,99 @@ func TestKeysManagerBasic(t *testing.T) {
 }
 
 func TestKeysManagerWrongPassword(t *testing.T) {
+	t.Parallel()
+	privroot := "test-priv-" + t.Name()
 
+	km1 := NewKeysManager(privroot)
+	defer func() {
+		if err := km1.RemovePrivroot(); err != nil {
+			t.Fatalf("tearing down (remove privroot): %s", err)
+		}
+	}()
+
+	password := []byte("setup password")
+	if err := km1.SignUp(password); err != nil {
+		t.Fatalf("signing up: %s", err)
+	}
+
+	km2 := NewKeysManager(privroot)
+	password = []byte("the wrong password!")
+	err := km2.Login(password)
+	if err != ErrWrongPassword {
+		t.Fatalf("should have ErrorWrongPassword, got %s", err)
+	}
+}
+
+func TestKeysManagerMultipleSignUp(t *testing.T) {
+	t.Parallel()
+
+	privroot := "test-priv-" + t.Name()
+
+	km1 := NewKeysManager(privroot)
+	defer func() {
+		if err := km1.RemovePrivroot(); err != nil {
+			t.Fatalf("tearing down (remove privroot): %s", err)
+		}
+	}()
+
+	password := []byte("my awesome password")
+	if err := km1.SignUp(password); err != nil {
+		t.Fatalf("signing up: %s", err)
+	}
+
+	err := km1.SignUp(password)
+	if err != ErrAlreadySignedUp {
+		t.Fatalf("should have ErrAlreadyLoggedIn, got %s", err)
+	}
+}
+
+func TestKeysManagerSignUpThenLogin(t *testing.T) {
+	t.Parallel()
+
+	privroot := "test-priv-" + t.Name()
+
+	km1 := NewKeysManager(privroot)
+	defer func() {
+		if err := km1.RemovePrivroot(); err != nil {
+			t.Fatalf("tearing down (remove privroot): %s", err)
+		}
+	}()
+
+	password := []byte("my awesome password")
+	if err := km1.SignUp(password); err != nil {
+		t.Fatalf("signing up: %s", err)
+	}
+
+	if err := km1.Login(password); err != ErrAlreadyLoggedIn {
+		t.Fatalf("should have ErrAlreadyLoggedIn, got %s", err)
+	}
+}
+
+func TestKeysManagerMultipleLogin(t *testing.T) {
+	t.Parallel()
+
+	privroot := "test-priv-" + t.Name()
+
+	km1 := NewKeysManager(privroot)
+	defer func() {
+		if err := km1.RemovePrivroot(); err != nil {
+			t.Fatalf("tearing down (remove privroot): %s", err)
+		}
+	}()
+
+	password := []byte("my awesome password")
+	if err := km1.SignUp(password); err != nil {
+		t.Fatalf("signing up: %s", err)
+	}
+
+	km2 := NewKeysManager(privroot)
+	if err := km2.Login(password); err != nil {
+		t.Fatalf("login in: %s", err)
+	}
+
+	if err := km2.Login(password); err != ErrAlreadyLoggedIn {
+		t.Fatalf("should have ErrAlreadyLoggedIn, got %s", err)
+	}
 }
 
 // alters the password hash file, and make sure we can't log in afterwards.
