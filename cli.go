@@ -76,11 +76,9 @@ func (cli *Cli) Start() {
 }
 
 func (cli *Cli) login() error {
-	fmt.Print("Enter password: ")
-	password, err := terminal.ReadPassword(int(os.Stdin.Fd()))
-	fmt.Println()
+	password, err := cli.askpassword("Enter password")
 	if err != nil {
-		return fmt.Errorf("reading password from stdin: %s", err)
+		return err
 	}
 
 	err = cli.km.Login(password)
@@ -166,6 +164,8 @@ func (cli *Cli) load(args ...string) error {
 	}
 	fmt.Print(string(content))
 	if content[len(content)-1] != '\n' {
+		// funny character to indicate that we manually added a line return
+		// idea and character stolen from the fish shell
 		fmt.Println("\xe2\x8f\x8e\x20")
 	}
 	return nil
@@ -237,47 +237,6 @@ func (cli *Cli) confirm(question string) bool {
 		}
 		// otherwise we keep asking
 	}
-}
-
-func (cli *Cli) generatenewkeys() error {
-	fmt.Print("Enter new password: ")
-	password, err := terminal.ReadPassword(int(os.Stdin.Fd()))
-	fmt.Println()
-	if err != nil {
-		return fmt.Errorf("reading password from stdin: %s", err)
-	}
-
-	fmt.Print("Confirm new password: ")
-	confirm, err := terminal.ReadPassword(int(os.Stdin.Fd()))
-	fmt.Println()
-	if err != nil {
-		return fmt.Errorf("reading confirm from stdin: %s", err)
-	}
-
-	if !bytes.Equal(confirm, password) {
-		return fmt.Errorf("Passwords don't match")
-	}
-
-	if err := cli.km.GenerateNewKeys(password); err != nil {
-		// FIXME: instead of deleting the keys file, rename to back up file,
-		// like keys#.priv where # is the backup number
-		if errors.Is(err, ErrKeysfileExists) {
-			if !cli.confirm("overwrite keysfile? existing keys will be lost forever") {
-				fmt.Println("Abort")
-				return nil
-			}
-			if err := cli.km.RemoveKeysfile(); err != nil {
-				return err
-			}
-			if err := cli.km.GenerateNewKeys(password); err != nil {
-				return fmt.Errorf("generating new keys: %s", err)
-			}
-		} else {
-			return fmt.Errorf("generate new keys: %s", err)
-		}
-	}
-	fmt.Println("new keys generated successfully")
-	return nil
 }
 
 func (cli *Cli) unhandledCommand(command string, args []string) {
