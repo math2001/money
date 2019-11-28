@@ -22,6 +22,10 @@ type Cli struct {
 	km       *KeysManager
 }
 
+// the private folder name in which we store the keys, salts and password hash
+// FIXME: allow the user to change this
+const privroot = "priv"
+
 // Start the CLI application
 func (cli *Cli) Start() {
 
@@ -33,7 +37,7 @@ func (cli *Cli) Start() {
 	}
 
 	var err error
-	cli.km, err = NewKeysManager()
+	cli.km = NewKeysManager(privroot)
 	if err != nil {
 		log.Fatalf("create keys manager: %s", err)
 	}

@@ -18,11 +18,27 @@ import (
 	"golang.org/x/crypto/pbkdf2"
 )
 
+// I'm not sure what is the recommended way of checking whether an error
+// reveals that the priv directory is corrupted. Currently, every error which
+// does reveal corruption wrapps the underlying ErrPrivCorrupted. However, in
+// the stdlib, there are dedicated function (os.IsExist) which help interpret
+// errors (exactly what this wrapping trick is doing). Hence, we could also
+// have a function func IsPrivCorruted(err error) bool which would be like
+// err == ErrNoSaltsfile || err == ErrNoKeysfile || etc...
+// The reason I chose to take the first approach is that now that we have
+// errors.Is, it seems very natural to do: errors.Is(err, ErrPrivCorrupted).
+// CHECKME: Which one is the best approach? Why?
+// EDIT: I'm writing a blog post about it :-) search for error tagging math2001
+
+// ErrPrivCorrupted is the underlying error which indicates that the priv
+// directory isn't right (missing file, altered keys, etc...)
+var ErrPrivCorrupted = errors.New("priv directory corrupted")
+
 // ErrKeysfileExists is returned if the keysfile already exists
 var ErrKeysfileExists = errors.New("keysfile already exists")
 
 // ErrNoKeysfile is returned if there is no keysfile to read the keys from
-var ErrNoKeysfile = errors.New("no keysfile")
+var ErrNoKeysfile = fmt.Errorf("no keys file (%w)", ErrPrivCorrupted)
 
 // ErrWrongPassword is returned when the hash store hashpasswordfile doesn't
 // match with the hash of the typed password. See Login function
@@ -34,6 +50,9 @@ var ErrAlreadyLoggedIn = errors.New("already logged in")
 
 // ErrAlreadySignedUp is returned by SignUp when the user tries to sign up again
 var ErrAlreadySignedUp = errors.New("already signed up")
+
+// ErrNoPasswordHashFile is returned by Login if no password hash file is found
+var ErrNoPasswordHashFile = fmt.Errorf("no password hash file (%w)", ErrPrivCorrupted)
 
 // KeysManager loads the different keys from a file (keysfile) and decrypts
 // them using the password. It can also generate new keys in place of the old
@@ -58,7 +77,13 @@ func (k Keys) String() string {
 	return fmt.Sprintf("[secret!] Keys{}")
 }
 
+// Equal compares whether the fields are equal
+func (k Keys) Equal(target Keys) bool {
+	return bytes.Equal(k.MAC, target.MAC) && bytes.Equal(k.Encryption, target.Encryption)
+}
+
 // LoadKeys loads the keys from the file
+// FIXME: do something so that we ensure that we only load the keys once
 func (km *KeysManager) LoadKeys() (Keys, error) {
 	var keys Keys
 
@@ -74,6 +99,8 @@ func (km *KeysManager) LoadKeys() (Keys, error) {
 
 	// FIXME: can this key loading process be a bit smoother? Please don't be
 	// too smart about it. I'm not sure there is a way
+	// FIXME: stop trying to load some fancy language. Just load the two keys,
+	// and assert you reach EOF
 	for scanner.Scan() && counter < 2 {
 		line := scanner.Text()
 		if line[0] == '#' || len(line) == 0 {
@@ -137,24 +164,7 @@ func (km *KeysManager) encryptKey(decryptedKey []byte) (string, error) {
 	return hex.EncodeToString(encryptedKey), nil
 }
 
-// generateHexKey create a new key, encrypts it with the current block cipher,
-// and then hex encodes it
-// FIXME: this is a really bad name, we don't understand that it is being
-// securely encrypted from it.
-func (km *KeysManager) generateHexKey() (string, error) {
-	decryptedKey := make([]byte, km.keysize)
-
-	if _, err := io.ReadFull(rand.Reader, decryptedKey); err != nil {
-		return "", fmt.Errorf("generating key: %s", err)
-	}
-
-	return km.encryptKey(decryptedKey)
-}
-
-// GenerateNewKeys generates the mac and encryption keys, encrypts them and
-// stores them in keysfile
-// FIXME: this function shouldn't be exposed...
-func (km *KeysManager) GenerateNewKeys(password []byte) error {
+func (km *KeysManager) generateNewKeys(password []byte) error {
 	if _, err := os.Stat(km.keysfile); err == nil {
 		return ErrKeysfileExists
 	}
@@ -168,11 +178,21 @@ func (km *KeysManager) GenerateNewKeys(password []byte) error {
 	// do it in two steps to not erase km.block in case there is an error
 	km.block = cipher
 
-	MACKey, err := km.generateHexKey()
+	generateHexKey := func() (string, error) {
+		decryptedKey := make([]byte, km.keysize)
+
+		if _, err := io.ReadFull(rand.Reader, decryptedKey); err != nil {
+			return "", fmt.Errorf("generating key: %s", err)
+		}
+
+		return km.encryptKey(decryptedKey)
+	}
+
+	MACKey, err := generateHexKey()
 	if err != nil {
 		return err
 	}
-	encryptionKey, err := km.generateHexKey()
+	encryptionKey, err := generateHexKey()
 	if err != nil {
 		return err
 	}
@@ -236,7 +256,7 @@ func (km *KeysManager) ChangePassword(newpassword []byte) error {
 }
 
 // SignUp makes the priv directory, creates the salts, password hash file and
-// keys
+// generates new keys
 func (km *KeysManager) SignUp(password []byte) error {
 
 	err := os.Mkdir(km.privroot, 0755)
@@ -247,7 +267,7 @@ func (km *KeysManager) SignUp(password []byte) error {
 		return fmt.Errorf("making privroot directory %q: %s", km.privroot, err)
 	}
 
-	km.salts, err = GenerateNewSalts(km.privroot)
+	km.salts, err = generateNewSalts(km.privroot)
 	if err != nil {
 		return fmt.Errorf("generating salts: %s", err)
 	}
@@ -257,7 +277,7 @@ func (km *KeysManager) SignUp(password []byte) error {
 		return fmt.Errorf("writing password hash to file: %s", err)
 	}
 
-	if err := km.GenerateNewKeys(password); err != nil {
+	if err := km.generateNewKeys(password); err != nil {
 		return fmt.Errorf("generating new keys: %s", err)
 	}
 
@@ -285,7 +305,7 @@ func (km *KeysManager) Login(password []byte) error {
 	}
 
 	var err error
-	km.salts, err = LoadSalts(km.privroot)
+	km.salts, err = loadSalts(km.privroot)
 	if err != nil {
 		return fmt.Errorf("loading salts: %w", err)
 	}
@@ -299,21 +319,15 @@ func (km *KeysManager) Login(password []byte) error {
 
 	hexpasswordhash, err := ioutil.ReadFile(km.passwordhashfile)
 	if os.IsNotExist(err) {
-		fmt.Println("No hash file to compare password against.")
-		// FIXME: what should we do here? Store the new password in hashfile
-		// and keep going? What if it's wrong? next time the user tries to log
-		// in with the right password, they'll be kicked out! Maybe we should
-		// have a second command, like login-force, which wouldn't have this
-		// checking feature
-		return fmt.Errorf("not implemented")
+		return ErrNoPasswordHashFile
 	}
 	if err != nil {
-		return fmt.Errorf("reading from password hash file: %s", err)
+		return fmt.Errorf("reading from password hash file: %s (%w)", err, ErrPrivCorrupted)
 	}
 
 	passwordhash, err := hex.DecodeString(string(hexpasswordhash))
 	if err != nil {
-		return fmt.Errorf("decoding hex password hash: %s", err)
+		return fmt.Errorf("decoding hex password hash: %s (%w)", err, ErrPrivCorrupted)
 	}
 
 	if !bytes.Equal(passwordhash, pbkdf2.Key(password, km.salts.Password, 4096, 32, sha256.New)) {
@@ -345,8 +359,14 @@ func (km *KeysManager) HasSignedUp() bool {
 	return err == nil || os.IsExist(err)
 }
 
+// RemovePrivroot removes permanantely the private folder. If you run that,
+// you loose your keys (ie. you won't be able to decrypt your files anymore)
+func (km *KeysManager) RemovePrivroot() error {
+	return os.RemoveAll(km.privroot)
+}
+
 // NewKeysManager create a new KeysManager with some sane default
-func NewKeysManager() (*KeysManager, error) {
+func NewKeysManager(privroot string) *KeysManager {
 
 	// the files in the priv folder don't *have* to be secret. Technically, you
 	// could share it with everyone, and this application should still be
@@ -364,10 +384,8 @@ func NewKeysManager() (*KeysManager, error) {
 	// passwordhash.priv: this is just a hash of the user's password. It is
 	// technically secure, but best kept secret.
 
-	// FIXME: the user should be able to give a custom priv root
-
 	km := &KeysManager{
-		privroot: "priv",
+		privroot: privroot,
 		keysize:  32,
 	}
 
@@ -375,5 +393,5 @@ func NewKeysManager() (*KeysManager, error) {
 	km.saltdir = filepath.Join(km.privroot, "salts")
 	km.passwordhashfile = filepath.Join(km.privroot, "passwordhash.priv")
 
-	return km, nil
+	return km
 }

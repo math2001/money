@@ -4,7 +4,6 @@ import (
 	"bufio"
 	"crypto/rand"
 	"encoding/hex"
-	"errors"
 	"fmt"
 	"io"
 	"io/ioutil"
@@ -14,14 +13,16 @@ import (
 
 const saltsfile = "salts"
 
-var ErrNoSaltsFile = errors.New("no saltsfile")
+// ErrNoSaltsFile is returned when the salt file isn't found in the private
+// directory
+var ErrNoSaltsFile = fmt.Errorf("no salts file (%w)", ErrPrivCorrupted)
 
 // Salts containts the *decrypted* salts
 type Salts struct {
 	Cipher, Password []byte
 }
 
-func GenerateNewSalts(privroot string) (*Salts, error) {
+func generateNewSalts(privroot string) (*Salts, error) {
 	generateNewSalt := func() ([]byte, error) {
 		const saltsize = 16
 		salt := make([]byte, saltsize)
@@ -52,7 +53,7 @@ func GenerateNewSalts(privroot string) (*Salts, error) {
 	return salts, nil
 }
 
-func LoadSalts(privroot string) (*Salts, error) {
+func loadSalts(privroot string) (*Salts, error) {
 
 	f, err := os.Open(filepath.Join(privroot, saltsfile))
 

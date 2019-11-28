@@ -1,3 +1,9 @@
+/*
+Cryptor is simple utility which manages the loading and saving of encrypted
+files. All it needs is two secure and secret keys: MAC key and an encryption
+key
+*/
+
 package main
 
 // I'm not sure at all how files should be encrypted, which is partly why I'm
