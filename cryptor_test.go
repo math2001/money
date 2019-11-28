@@ -10,6 +10,7 @@ import (
 	"testing"
 )
 
+// FIXME: use virtual file system
 const storedir = "test-store"
 
 // fill with a bunch of pre-generated keys so that we can have deterministic
@@ -69,9 +70,7 @@ func TestDifferentCryptor(t *testing.T) {
 		t.Errorf("input should equal output\n%q\n%q", input, output)
 	}
 }
-
-// FIXME: use virtual file system
-func TestMain(m *testing.M) {
+func returningTestMain(m *testing.M) int {
 	if err := os.MkdirAll(storedir, os.ModePerm); err != nil {
 		log.Fatalf("makdir %s: %s", storedir, err)
 	}
@@ -111,10 +110,14 @@ func TestMain(m *testing.M) {
 		key, err := hex.DecodeString(hexkey)
 		if err != nil {
 			fmt.Printf("[internal error] decoding pre-generated keys: %s\n", err)
-			return // don't log.Fatal to allow for tear down
+			return 1 // don't log.Fatal to allow for tear down
 		}
 		keys[i] = key
 	}
-	code := m.Run()
-	os.Exit(code)
+	return m.Run()
+}
+
+// use custom test main to allow returningTestMain to run its deferred functions
+func TestMain(m *testing.M) {
+	os.Exit(returningTestMain(m))
 }
