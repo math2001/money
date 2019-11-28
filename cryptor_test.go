@@ -3,17 +3,22 @@ package main
 import (
 	"bytes"
 	"encoding/hex"
+	"fmt"
 	"log"
 	"os"
+	"path/filepath"
 	"testing"
 )
+
+const storedir = "test-store"
 
 // fill with a bunch of pre-generated keys so that we can have deterministic
 // keys
 var keys [][]byte
 
 func TestBasicCryptor(t *testing.T) {
-
+	t.Parallel()
+	storefile := filepath.Join(storedir, "test-"+t.Name())
 	cryptor, err := NewCryptor(keys[0], keys[1])
 	if err != nil {
 		t.Fatalf("creating cryptor: %s", err)
@@ -21,13 +26,13 @@ func TestBasicCryptor(t *testing.T) {
 
 	input := []byte("aaaaa bbbb cccc dddd")
 
-	if err := cryptor.Save("test-store/test1", input); err != nil {
-		t.Fatalf("saving to test-store/test1: %s", err)
+	if err := cryptor.Save(storefile, input); err != nil {
+		t.Fatalf("saving to %s: %s", storefile, err)
 	}
 
-	output, err := cryptor.Load("test-store/test1")
+	output, err := cryptor.Load(storefile)
 	if err != nil {
-		t.Fatalf("loading from test-store/test1: %s", err)
+		t.Fatalf("loading from %s: %s", storefile, err)
 	}
 
 	if !bytes.Equal(input, output) {
@@ -37,6 +42,8 @@ func TestBasicCryptor(t *testing.T) {
 
 // Test saving with one cryptor and loading with an other
 func TestDifferentCryptor(t *testing.T) {
+	t.Parallel()
+	storefile := filepath.Join(storedir, "test-"+t.Name())
 	cryptorw, err := NewCryptor(keys[2], keys[3])
 	if err != nil {
 		t.Fatalf("creating writting cryptor: %s", err)
@@ -44,8 +51,8 @@ func TestDifferentCryptor(t *testing.T) {
 
 	input := []byte("asdf poijwqefad asdf owqiejfasldfkw")
 
-	if err := cryptorw.Save("test-store/test2", input); err != nil {
-		t.Fatalf("saving to test-store/test2: %s", err)
+	if err := cryptorw.Save(storefile, input); err != nil {
+		t.Fatalf("saving to %s: %s", storefile, err)
 	}
 
 	cryptorr, err := NewCryptor(keys[2], keys[3])
@@ -53,9 +60,9 @@ func TestDifferentCryptor(t *testing.T) {
 		t.Fatalf("create reading cryptor: %s", err)
 	}
 
-	output, err := cryptorr.Load("test-store/test2")
+	output, err := cryptorr.Load(storefile)
 	if err != nil {
-		t.Fatalf("loading from test-store/test2: %s", err)
+		t.Fatalf("loading from %s: %s", storefile, err)
 	}
 
 	if !bytes.Equal(input, output) {
@@ -65,9 +72,14 @@ func TestDifferentCryptor(t *testing.T) {
 
 // FIXME: use virtual file system
 func TestMain(m *testing.M) {
-	if err := os.MkdirAll("test-store", os.ModePerm); err != nil {
-		log.Fatalf("makdir test-store: %s", err)
+	if err := os.MkdirAll(storedir, os.ModePerm); err != nil {
+		log.Fatalf("makdir %s: %s", storedir, err)
 	}
+	defer func() {
+		if err := os.RemoveAll(storedir); err != nil {
+			log.Fatalf("remove %s: %s", storedir, err)
+		}
+	}()
 
 	// $ make money-tools
 	// $ money-tools generate-new-keys 20
@@ -98,14 +110,11 @@ func TestMain(m *testing.M) {
 	for i, hexkey := range hexkeys {
 		key, err := hex.DecodeString(hexkey)
 		if err != nil {
-			log.Fatalf("[internal error] decoding pre-generated keys: %s", err)
+			fmt.Printf("[internal error] decoding pre-generated keys: %s\n", err)
+			return // don't log.Fatal to allow for tear down
 		}
 		keys[i] = key
 	}
-
 	code := m.Run()
-	if err := os.RemoveAll("test-store"); err != nil {
-		log.Fatalf("remove test-store: %s", err)
-	}
 	os.Exit(code)
 }
