@@ -3,3 +3,4 @@ store
 *.priv
 salt
 priv/
+money-tools

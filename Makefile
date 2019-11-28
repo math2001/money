@@ -7,5 +7,5 @@ money: *.go
 	go build
 
 money-tools: tools/*.go
-	go build ./tools -o money-tools
+	go build -o money-tools ./tools
 
