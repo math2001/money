@@ -1,4 +1,4 @@
-const cacheName = 'money'
+const cacheName = 'money-v1'
 
 const filesToCache = [
   '/',
@@ -25,8 +25,23 @@ self.addEventListener('activate', e => {
 self.addEventListener('fetch', event => {
 
   event.respondWith(
-    fetch(event.request).catch(err => {
-      return caches.match(event.request, {ignoreSearch: true})
+    fetch(event.request)
+    .then(resp => {
+      // save in the cache
+      console.log('[service worker] got response, put into cache (should have next message)', resp, resp.clone)
+      let clone = resp.clone()
+      self.caches.open(cacheName).then(cache => {
+        cache.put(event.request, clone)
+        console.log('[service worker] saved response in the cache', clone)
+      })
+      return resp
+
+    }).catch(err => {
+      // try to get from the cach
+      return caches.match(event.request, {ignoreSearch: true}) || err
+    }).then(resp => {
+      console.log('[service worker] just checking what we got', resp)
+      return resp
     })
   )
 })
