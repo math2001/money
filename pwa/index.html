@@ -1,0 +1,27 @@
+<!doctype html>
+<html>
+<head>
+    <meta charset='utf-8'>
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <link rel="manifest" href="manifest.json" />
+    <title>Money</title>
+</head>
+<body>
+    <h1>Money</h1>
+
+    asdfasdf
+
+    <input type="file" accept="image/*" capture="camera" />
+
+    <script>
+        if ('serviceWorker' in navigator) {
+            navigator.serviceWorker.register('./sw.js')
+            .then(() => {
+                console.log('Service worker registered!')
+            })
+        } else {
+            alert("no service worker for you...")
+        }
+    </script>
+</body>
+</html>

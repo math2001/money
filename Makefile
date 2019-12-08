@@ -1,7 +1,7 @@
 .PHONEY: run
 
 run: money
-	./money
+	./money server
 
 money: *.go
 	go build

@@ -1,0 +1,14 @@
+{
+  "name": "Money",
+  "short_name": "Money",
+  "icons": [{
+    "src": "icons/icon-64x64.png",
+      "sizes": "64x64",
+      "type": "image/png"
+    }
+  ],
+  "start_url": "/index.html",
+  "display": "standalone",
+  "background_color": "#FF9800",
+  "theme_color": "#FF9800"
+}
