@@ -42,13 +42,14 @@ class App {
   }
 
   proxyLinks(e: MouseEvent) {
-    if ((e.target as Node).nodeName === "A") {
-      if (this.router((e.target as HTMLHyperlinkElementUtils).pathname)) {
+    const target = e.target as HTMLAnchorElement;
+    if (target.nodeName === "A") {
+      if (this.router((target as HTMLHyperlinkElementUtils).pathname)) {
         e.preventDefault();
         e.stopImmediatePropagation();
         e.stopPropagation();
-        this.browseto(e.target.pathname);
-        history.pushState({}, "", e.target.pathname);
+        this.browseto(target.pathname);
+        history.pushState({}, "", target.pathname);
       }
       // otherwise, we just let the user browse to that URL like any old a tag
       // would do
