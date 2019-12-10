@@ -1,0 +1,9 @@
+section {
+  display: none;
+  width: 640px;
+  margin: 128px auto;
+}
+
+section.active {
+  display: block;
+}

@@ -4,22 +4,51 @@
     <meta charset='utf-8'>
     <meta name="viewport" content="width=device-width, initial-scale=1">
     <link rel="manifest" href="manifest.json" />
+    <link rel="stylesheet" href="css/main.css" />
     <title>Money</title>
 </head>
 <body>
-    <h1>Money</h1>
+<h1>Money</h1>
 
-    <input type="file" accept="image/*" capture="camera" />
+<main>
+<section id="home">
+  <h2>Money</h2>
+  <p>Welcome to money! You can <a href="/login">Login</a></p>
+</section>
 
-    <script>
-        if ('serviceWorker' in navigator) {
-            navigator.serviceWorker.register('./sw.js')
-            .then(() => {
-                console.log('Service worker registered!')
-            })
-        } else {
-            alert("no service worker for you...")
-        }
-    </script>
+<section id="login">
+    <h2>Login</h2>
+    <form action="/login" class="login-form" method="post">
+        <p>
+            <label for="email">Email</label>:
+            <input type="text" name="email" placeholder="youremail@example.com">
+        </p>
+        <p>
+            <label for="password">Password</label>:
+            <input type="password" name="password">
+        </p>
+        <p>
+             <input type="submit" value="Login">
+        </p>
+    </form>
+    <p>Don't have a login yet? <a href="/signup">Sign up</a>!</p>
+</section>
+</main>
+
+<script>
+    if ('serviceWorker' in navigator) {
+      navigator.serviceWorker.register('/js/sw.js', {scope: '/'})
+      .then(() => {
+        console.info('Service worker registered!')
+      }).catch(err => {
+        console.error("service worker didn't register...", err)
+      })
+    } else {
+      alert("no service worker for you...")
+    }
+</script>
+
+<script src="/js/entry.js"></script>
+
 </body>
 </html>

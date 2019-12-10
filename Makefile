@@ -1,7 +1,10 @@
-.PHONEY: run
+.PHONEY: run dev
 
 run: money
 	./money server
+
+dev:
+	tsc --watch
 
 money: *.go
 	go build

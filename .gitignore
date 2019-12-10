@@ -4,3 +4,6 @@ store
 salt
 priv/
 money-tools
+*.js
+*.map
+*.tsbuildinfo
