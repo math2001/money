@@ -30,16 +30,16 @@ func ServerMode() {
 	fmt.Println("===============================")
 	fmt.Println()
 
-	// http.Handle("/js/", http.StripPrefix("/js", http.FileServer(http.Dir("./pwa/js"))))
 	http.Handle("/css/", http.StripPrefix("/css", http.FileServer(http.Dir("./pwa/css"))))
+
 	http.HandleFunc("/js/", func(w http.ResponseWriter, r *http.Request) {
-		w.Header().Set("Service-Worker-Allowed", "/")
-		path := filepath.Join("./pwa", r.URL.Path)
-		fmt.Println(path)
-		http.ServeFile(w, r, path)
+		if r.URL.Path == "/js/sw.js" {
+			w.Header().Set("Service-Worker-Allowed", "/")
+		}
+		http.ServeFile(w, r, filepath.Join("./pwa", r.URL.Path))
 	})
+
 	http.HandleFunc("/", func(w http.ResponseWriter, r *http.Request) {
-		w.Header().Set("Service-Worker-Allowed", "/")
 		http.ServeFile(w, r, "pwa/index.html")
 	})
 
