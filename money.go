@@ -33,11 +33,20 @@ func ServerMode() {
 	http.Handle("/css/", http.StripPrefix("/css", http.FileServer(http.Dir("./pwa/css"))))
 
 	http.HandleFunc("/js/", func(w http.ResponseWriter, r *http.Request) {
+		// the service worker needs a special header because it is served from
+		// ./js/ (hence it's max scope is ./js/), but I need it's scope to be /
 		if r.URL.Path == "/js/sw.js" {
 			w.Header().Set("Service-Worker-Allowed", "/")
 		}
+
 		http.ServeFile(w, r, filepath.Join("./pwa", r.URL.Path))
 	})
+
+	http.HandleFunc("/api/", func(w http.ResponseWriter, r *http.Request) {
+		respond(w, http.StatusOK, "FIXME: list all the possible actions")
+	})
+
+	http.HandleFunc("/api/login/", loginHandler)
 
 	http.HandleFunc("/", func(w http.ResponseWriter, r *http.Request) {
 		http.ServeFile(w, r, "pwa/index.html")
@@ -68,10 +77,13 @@ func CLIMode() {
 var ErrOddParts = errors.New("cannot generate map from odd number of parts")
 var ErrReservedKey = errors.New("reserved key")
 
-func responde(w http.ResponseWriter, kind string, parts ...interface{}) error {
+func respond(w http.ResponseWriter, code int, kind string, parts ...interface{}) error {
 	if len(parts)%2 == 1 {
 		return fmt.Errorf("# parts: %d (%w)", len(parts), ErrOddParts)
 	}
+
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(code)
 
 	obj := make(map[string]interface{}, len(parts)/2)
 	obj["kind"] = kind

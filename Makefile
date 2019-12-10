@@ -1,4 +1,4 @@
-.PHONEY: run pwawatch build clean
+.PHONY: run pwawatch build clean
 
 run: money
 	./money server
@@ -19,7 +19,7 @@ pwawatch:
 	# you can set that up yourself by doing tsc -p tsconfig-sw.json --watch
 	tsc --watch
 
-money: $(fd --extension go)
+money: $(shell fd --extension go)
 	go build
 
 money-tools: tools/*.go
