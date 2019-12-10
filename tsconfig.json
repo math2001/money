@@ -1,0 +1,13 @@
+{
+    "compilerOptions": {
+        "target": "es6",
+        "module": "es6",
+        "lib": ["es6", "dom", "scripthost"],
+        "noImplicitAny": true,
+        "removeComments": true,
+        "sourceMap": true,
+        "forceConsistentCasingInFileNames": true,
+        "strict": true,
+        "outDir": "./pwa/js/"
+    }
+}

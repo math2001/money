@@ -1,14 +1,20 @@
-.PHONEY: run dev
+.PHONEY: dev build clean
 
 run: money
 	./money server
 
-dev:
-	tsc --watch
+build:
+	tsc
+	go build
 
-money: *.go
+clean:
+	go clean
+	rm -r ./pwa/js/*
+
+money: $(fd --extension go)
 	go build
 
 money-tools: tools/*.go
 	go build -o money-tools ./tools
+
 
