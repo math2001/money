@@ -9,5 +9,8 @@
         "forceConsistentCasingInFileNames": true,
         "strict": true,
         "outDir": "./pwa/js/"
-    }
+    },
+    "exclude": [
+        "./pwa/ts/sw.ts"
+    ]
 }
