@@ -56,13 +56,19 @@ var ErrWrongPassword = errors.New("wrong password")
 // once for example
 var ErrAlreadyLoaded = errors.New("already loaded")
 
+const (
+	saltCipher = iota
+	saltMac
+	saltPassword
+)
+
 // KeysManager loads the different keys from a file (keysfile) and decrypts
 // them using the password. It can also generate new keys in place of the old
 // ones
 type KeysManager struct {
 	block   cipher.Block
 	keysize int
-	sm      *saltsManager
+	sm      *SM
 
 	privroot         string
 	keysfile         string
@@ -77,16 +83,16 @@ func NewKeysManager(privroot string) *KeysManager {
 	// secure. However, it would make an attacker's job easier if he had
 	// acccess to them.
 
-	// keys.priv: the keys are encrypted with the user's password. Those keys
-	// are what Cryptor uses to encrypt user files
+	// keys: the keys are encrypted with the user's password (and the salt
+	// cipherSalt). Those keys are what Cryptor uses to encrypt user files
 
 	// salts: salts just have to be unique to fight against rainbow tables. If
 	// an attacker had access to those files before actually breaking into the
 	// application, he could generate a table of hashes using that salt to very
 	// quickly find the user's password (provided the it is somewhat common)
 
-	// passwordhash.priv: this is just a hash of the user's password. It is
-	// technically secure, but best kept secret.
+	// passwordhash: this is just a hash of the user's password (uses
+	// saltPassword). It is technically secure, but best kept secret.
 
 	km := &KeysManager{
 		privroot: privroot,
@@ -97,7 +103,7 @@ func NewKeysManager(privroot string) *KeysManager {
 	km.passwordhashfile = filepath.Join(km.privroot, "passwordhash")
 
 	// CHECKME: the original saltsize was 16 I think... Is that fine?
-	km.sm = newSaltsManager(filepath.Join(km.privroot, "salts"), 32)
+	km.sm = NewSaltsManager(2, filepath.Join(km.privroot, "salts"), 32)
 	return km
 }
 
@@ -113,11 +119,11 @@ func (km *KeysManager) SignUp(password []byte) error {
 		return fmt.Errorf("making privroot directory %q: %s", km.privroot, err)
 	}
 
-	if err := km.sm.generateNewSalts(); err != nil {
+	if err := km.sm.GenerateNew(); err != nil {
 		return fmt.Errorf("generating salts: %s", err)
 	}
 
-	passwordhash := pbkdf2.Key(password, km.sm.salts.password, 4096, 32, sha256.New)
+	passwordhash := pbkdf2.Key(password, km.sm.Get(saltPassword), 4096, 32, sha256.New)
 	if err := ioutil.WriteFile(km.passwordhashfile, []byte(hex.EncodeToString(passwordhash)), 0644); err != nil {
 		return fmt.Errorf("writing password hash to file: %s", err)
 	}
@@ -126,7 +132,7 @@ func (km *KeysManager) SignUp(password []byte) error {
 		return fmt.Errorf("generating new keys: %s", err)
 	}
 
-	cipherkey := pbkdf2.Key(password, km.sm.salts.cipher, 4096, 32, sha256.New)
+	cipherkey := pbkdf2.Key(password, km.sm.Get(saltCipher), 4096, 32, sha256.New)
 
 	cipher, err := aes.NewCipher(cipherkey)
 	if err != nil {
@@ -150,7 +156,7 @@ func (km *KeysManager) Login(password []byte) error {
 	}
 
 	var err error
-	if err := km.sm.loadSalts(); err != nil {
+	if err := km.sm.Load(); err != nil {
 		// wrap because this could contain the tag ErrPrivCorrupted
 		return fmt.Errorf("loading salts: %w", err)
 	}
@@ -172,7 +178,7 @@ func (km *KeysManager) Login(password []byte) error {
 		return fmt.Errorf("decoding hex password hash: %s (%w)", err, ErrPrivCorrupted)
 	}
 
-	if !bytes.Equal(passwordhash, pbkdf2.Key(password, km.sm.salts.password, 4096, 32, sha256.New)) {
+	if !bytes.Equal(passwordhash, pbkdf2.Key(password, km.sm.Get(saltPassword), 4096, 32, sha256.New)) {
 		// that doesn't *actually* mean that the password is wrong. It could
 		// be that the stored hash is wrong, the that this password would sill
 		// succesfully decode the files. This however shouldn't happen, check
@@ -180,7 +186,7 @@ func (km *KeysManager) Login(password []byte) error {
 		return ErrWrongPassword
 	}
 
-	cipherkey := pbkdf2.Key(password, km.sm.salts.cipher, 4096, 32, sha256.New)
+	cipherkey := pbkdf2.Key(password, km.sm.Get(saltCipher), 4096, 32, sha256.New)
 
 	cipher, err := aes.NewCipher(cipherkey)
 	if err != nil {
@@ -286,7 +292,7 @@ func (km *KeysManager) generateNewKeys(password []byte) error {
 		return fmt.Errorf("keysfile already exists")
 	}
 
-	cipherkey := pbkdf2.Key(password, km.sm.salts.cipher, 4096, 32, sha256.New)
+	cipherkey := pbkdf2.Key(password, km.sm.Get(saltCipher), 4096, 32, sha256.New)
 
 	cipher, err := aes.NewCipher(cipherkey)
 	if err != nil {
@@ -331,7 +337,7 @@ func (km *KeysManager) ChangePassword(newpassword []byte) error {
 
 	// replace cipher(currentpassword) with a cipher(newpassword)
 
-	cipherkey := pbkdf2.Key(newpassword, km.sm.salts.cipher, 4096, 32, sha256.New)
+	cipherkey := pbkdf2.Key(newpassword, km.sm.Get(saltCipher), 4096, 32, sha256.New)
 
 	cipher, err := aes.NewCipher(cipherkey)
 	if err != nil {

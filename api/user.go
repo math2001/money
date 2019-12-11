@@ -3,6 +3,7 @@ package api
 import (
 	"bytes"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"os"
 	"path/filepath"
@@ -11,6 +12,10 @@ import (
 	"github.com/math2001/money/db"
 	"golang.org/x/crypto/scrypt"
 )
+
+var ErrEmailAlreadyUsed = errors.New("email already used")
+
+var ErrWrongIdentifiers = errors.New("wrong identifiers")
 
 // SignUp creates a new user
 //
@@ -46,7 +51,8 @@ func (api *API) SignUp(email, password []byte) (*db.User, error) {
 		}
 	}
 
-	hashed, err := scrypt.Key(password, api.salt, 32768, 8, 1, 32)
+	// FIXME: the key size (32) should be a constant
+	hashed, err := scrypt.Key(password, api.sm.Get(saltpassword), 32768, 8, 1, 32)
 	if err != nil {
 		return nil, fmt.Errorf("signing up, hashing password: %s", err)
 	}
@@ -81,7 +87,7 @@ func (api *API) SignUp(email, password []byte) (*db.User, error) {
 	return db.NewUser(privroot), nil
 }
 
-func (api *API) Login(password []byte) (*db.User, error) {
+func (api *API) Login(email, password []byte) (*db.User, error) {
 	// check entry matches (return nil on sucess)
 	panic("not implemented")
 }

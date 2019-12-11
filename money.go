@@ -4,26 +4,12 @@ import (
 	"fmt"
 	"log"
 	"net/http"
-	"os"
 	"path/filepath"
 
 	"github.com/math2001/money/api"
 )
 
 func main() {
-	if len(os.Args) != 2 {
-		log.Fatal("Invalid number of arguments: \n   $ money <mode>")
-	}
-	if os.Args[0] == "cli" {
-		CLIMode()
-	} else if os.Args[1] == "server" {
-		ServerMode()
-	} else {
-		log.Fatalf("Invalid mode: %q. Only support cli or server", os.Args[1])
-	}
-}
-
-func ServerMode() {
 	fmt.Println("Welcome to Money! [server mode]")
 	fmt.Println("===============================")
 	fmt.Println()
@@ -31,6 +17,12 @@ func ServerMode() {
 	api, err := api.NewAPI("data")
 	if err != nil {
 		log.Fatalf("creating api: %s", err)
+	}
+
+	if api.IsUninitiated() {
+		fmt.Println("api is fresh (no data folder). Initiating now...")
+		api.Initiate()
+		fmt.Println("FIXME: give user a choice")
 	}
 
 	mux := &http.ServeMux{}

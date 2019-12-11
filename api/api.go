@@ -1,53 +1,92 @@
+/*
+Data folder structure:
+
+    appsalts
+    users/
+        {id1}/
+            kmdata/                # this is managed by keys manager
+                keys
+                passwordhashfile   # in the user's case, this file is redundant
+                salts
+            recordfile1            # these are encrypted with kmdata just above
+            recordfile2
+            ...
+        {id2}/
+            kmdata/
+                keys
+                passwordhashfile
+                salts
+            recordfile1
+            recordfile2
+            ...
+
+
+    The appsalts contains two salts:
+
+    saltcookie                 # the salt used to generate the keys used to
+                               # sign the cookies
+    saltpassword               # the salt used to encrypt the passwords
+                               # within the database
+*/
 package api
 
 import (
-	"crypto/rand"
-	"errors"
 	"fmt"
-	"io"
-	"io/ioutil"
 	"net/http"
 	"os"
 	"path/filepath"
-)
 
-var ErrEmailAlreadyUsed = errors.New("email already used")
+	"github.com/math2001/money/keysmanager"
+)
 
 type API struct {
 	dataroot  string
 	userslist string
 	usersdir  string
-	salt      []byte
+	// this salt is used to hash the passwords in the database
+	sm *keysmanager.SM
 }
 
 const saltsize = 32
 
+const (
+	// saltcookie is used to sign the cookie's payload
+	saltcookie = iota
+
+	// saltpasswod is used encrypt the passwords within the database
+	saltpassword
+)
+
 func NewAPI(dataroot string) (*API, error) {
-	if err := os.MkdirAll(dataroot, 0700); err != nil {
-		return nil, fmt.Errorf("mkdir dataroot: %s", err)
-	}
-
-	saltfile := filepath.Join(dataroot, "salts")
-
-	salt, err := ioutil.ReadFile(saltfile)
-	if os.IsNotExist(err) {
-		salt = make([]byte, saltsize)
-		if _, err := io.ReadFull(rand.Reader, salt); err != nil {
-			return nil, fmt.Errorf("generating salt: %s", err)
-		}
-		if err := ioutil.WriteFile(saltfile, salt, 0600); err != nil {
-			return nil, fmt.Errorf("writing salt to file: %s", err)
-		}
-	} else if err != nil {
-		return nil, fmt.Errorf("opening saltfile %q: %s", saltfile, err)
-	}
-
+	saltfile := filepath.Join(dataroot, "appsalts")
+	sm := keysmanager.NewSaltsManager(2, saltfile, saltsize)
+	sm.Load()
 	return &API{
-		salt:      salt,
+		sm:        sm,
 		dataroot:  dataroot,
 		userslist: filepath.Join(dataroot, "users.list"),
 		usersdir:  filepath.Join(dataroot, "users"),
 	}, nil
+}
+
+// IsUninitiated checks if the API has already been running before (ie. there are
+// files it can resume serving from)
+func (api *API) IsUninitiated() bool {
+	if _, err := os.Stat(api.dataroot); os.IsNotExist(err) {
+		return true
+	}
+	return false
+}
+
+func (api *API) Initiate() error {
+	// FIXME: clean up after yourself if you return early (error)
+	if err := os.Mkdir(api.dataroot, 0600); err != nil {
+		return fmt.Errorf("mkdir %q: %s", api.dataroot, err)
+	}
+	if err := api.sm.GenerateNew(); err != nil {
+		return err
+	}
+	return nil
 }
 
 // Serve starts a http server under /api/
@@ -56,5 +95,5 @@ func (api *API) BindTo(mux *http.ServeMux) {
 		respond(w, http.StatusOK, "FIXME: list all the possible actions")
 	})
 
-	mux.HandleFunc("/api/login", loginHandler)
+	mux.HandleFunc("/api/login", api.loginHandler)
 }

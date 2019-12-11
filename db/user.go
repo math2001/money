@@ -1,10 +1,12 @@
 package db
 
+// Maybe rename to db.go?
+
 // UserDB is the folder containing all the user's data.
 // Everything in their is encrypted using his password
 type User struct {
 	privroot string
-	cryptor  *cryptor
+	cryptor  *Cryptor
 }
 
 func (u *User) Save(filename string, plaintext []byte) error {
