@@ -28,6 +28,11 @@ func ServerMode() {
 	fmt.Println("===============================")
 	fmt.Println()
 
+	api, err := api.NewAPI("data")
+	if err != nil {
+		log.Fatalf("creating api: %s", err)
+	}
+
 	mux := &http.ServeMux{}
 	mux.Handle("/css/", http.StripPrefix("/css", http.FileServer(http.Dir("./pwa/css"))))
 	mux.HandleFunc("/js/", func(w http.ResponseWriter, r *http.Request) {
@@ -40,18 +45,14 @@ func ServerMode() {
 		http.ServeFile(w, r, filepath.Join("./pwa", r.URL.Path))
 	})
 
-	api, err := api.NewAPI("data")
-	if err != nil {
-		log.Fatalf("creating api: %s", err)
-	}
-	api.Serve(mux)
+	api.BindTo(mux)
 
-	http.HandleFunc("/", func(w http.ResponseWriter, r *http.Request) {
+	mux.HandleFunc("/", func(w http.ResponseWriter, r *http.Request) {
 		http.ServeFile(w, r, "pwa/index.html")
 	})
 
 	log.Printf("listening on :9999")
-	if err := http.ListenAndServe(":9999", nil); err != nil {
+	if err := http.ListenAndServe(":9999", mux); err != nil {
 		log.Fatal(err)
 	}
 }

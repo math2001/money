@@ -7,3 +7,4 @@ money-tools
 *.js
 *.map
 *.tsbuildinfo
+data/

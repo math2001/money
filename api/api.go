@@ -38,8 +38,8 @@ func NewAPI(dataroot string) (*API, error) {
 		if err := ioutil.WriteFile(saltfile, salt, 0600); err != nil {
 			return nil, fmt.Errorf("writing salt to file: %s", err)
 		}
-	} else {
-		return nil, fmt.Errorf("opening saltfile: %q", saltfile)
+	} else if err != nil {
+		return nil, fmt.Errorf("opening saltfile %q: %s", saltfile, err)
 	}
 
 	return &API{
@@ -51,10 +51,10 @@ func NewAPI(dataroot string) (*API, error) {
 }
 
 // Serve starts a http server under /api/
-func (api *API) Serve(mux *http.ServeMux) {
-	http.HandleFunc("/api/", func(w http.ResponseWriter, r *http.Request) {
+func (api *API) BindTo(mux *http.ServeMux) {
+	mux.HandleFunc("/api/", func(w http.ResponseWriter, r *http.Request) {
 		respond(w, http.StatusOK, "FIXME: list all the possible actions")
 	})
 
-	http.HandleFunc("/api/login/", loginHandler)
+	mux.HandleFunc("/api/login/", loginHandler)
 }
