@@ -2,13 +2,14 @@ package api
 
 import (
 	"encoding/json"
-	"fmt"
+	"log"
 	"net/http"
 )
 
-func respond(w http.ResponseWriter, code int, kind string, parts ...interface{}) error {
+func respond(w http.ResponseWriter, r *http.Request, code int, kind string, parts ...interface{}) {
 	if len(parts)%2 == 1 {
-		return fmt.Errorf("cannot generate map from odd number of parts: %d", len(parts))
+		log.Printf("%v cannot generate map from odd number of parts: %d", r, len(parts))
+		return
 	}
 
 	w.Header().Set("Content-Type", "application/json")
@@ -22,7 +23,8 @@ func respond(w http.ResponseWriter, code int, kind string, parts ...interface{})
 		}
 		if key, ok := part.(string); ok {
 			if key == "kind" {
-				return fmt.Errorf("key 'kind' is reserved (currently set to %q)", parts[i+1])
+				log.Printf("%v key 'kind' is reserved (currently set to %q)", r, parts[i+1])
+				return
 			}
 			obj[key] = parts[i+1]
 		}
@@ -30,8 +32,6 @@ func respond(w http.ResponseWriter, code int, kind string, parts ...interface{})
 
 	enc := json.NewEncoder(w)
 	if err := enc.Encode(obj); err != nil {
-		return fmt.Errorf("writing json obj: %s", err)
+		log.Printf("%v writing json obj: %s", r, err)
 	}
-
-	return nil
 }
