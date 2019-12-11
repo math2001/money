@@ -17,7 +17,7 @@
 
 <section id="login">
     <h2>Login</h2>
-    <form action="/login" class="login-form" method="post">
+    <form action="/api/login" class="login-form" method="post">
         <p>
             <label for="email">Email</label>:
             <input type="text" name="email" placeholder="youremail@example.com">
@@ -34,10 +34,41 @@
     <p>Don't have a login yet? <a href="/signup">Sign up</a>!</p>
 </section>
 
+<section id="signup">
+    <h2>Sign up</h2>
+    <form action="/api/signup" class="login-form" method="post">
+        <p>
+            <label for="email">Email</label>:
+            <input type="text" name="email" placeholder="youremail@example.com">
+        </p>
+        <p>
+            <label for="password">Password</label>:
+            <input type="password" name="password">
+        </p>
+        <p>
+            <label for="confirm">Confirm password</label>:
+            <input type="password" name="confirm">
+        </p>
+
+        <p><code>
+            FIXME: implement javascript confirmation that passwords match
+        </code></p>
+
+        <p>
+             <input type="submit" value="Sign up">
+        </p>
+        <p class="form-status">Fill in your details</p>
+    </form>
+</section>
+
 <section id="err404">
   <h2>Section not found</h2>
-  <p>That's an internal error... Please report</p>
+  <p>
+  Did you lose your way, or did we mess up? If you think <em>we</em> are
+  getting something wrong, please let us know!
+  </p>
   <p>FIXME: explain how to report</p>
+  <p>Go back <a href="/">home</a></p>
 </section>
 </main>
 

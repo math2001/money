@@ -1,5 +1,6 @@
 import Home from "./home.js";
 import Login from "./login.js";
+import SignUp from "./signup.js";
 import Err404 from "./err404.js";
 
 interface Page {
@@ -16,6 +17,7 @@ class App {
   home: Page;
   login: Page;
   err404: Page;
+  signup: Page;
 
   constructor() {
     this.current = null;
@@ -31,6 +33,7 @@ class App {
     this.home = new Home(this.getSection("home"));
     this.login = new Login(this.getSection("login"));
     this.err404 = new Err404(this.getSection("err404"));
+    this.signup = new SignUp(this.getSection("signup"));
   }
 
   getSection(name: string): HTMLElement {
@@ -69,10 +72,12 @@ class App {
   router(pathname: string): Page | null {
     // FIXME: clean up pathname
 
-    if (pathname === "/login") {
-      return this.login;
-    } else if (pathname === "/") {
+    if (pathname === "/") {
       return this.home;
+    } else if (pathname === "/login") {
+      return this.login;
+    } else if (pathname === "/signup") {
+      return this.signup;
     } else {
       return null;
     }

@@ -1,4 +1,6 @@
-export default class Login {
+// this is really similar to the login form... how could we reuse the code?
+
+export default class SignUp {
   section: HTMLElement;
   form: HTMLFormElement;
   formstatus: HTMLElement;
