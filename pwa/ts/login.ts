@@ -33,7 +33,7 @@ export default class Login {
     this.formstatus.innerHTML = "Sending request...";
 
     fetch("/api/login", {
-      method: "POST",
+      method: "post",
       body: new FormData(this.form)
     })
       .then((resp: Response) => resp.json())

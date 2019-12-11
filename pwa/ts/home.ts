@@ -6,7 +6,6 @@ export default class Home {
   }
 
   setup() {
-    console.log("show home!");
     this.section.classList.add("active");
   }
 

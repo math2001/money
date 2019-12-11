@@ -56,5 +56,5 @@ func (api *API) BindTo(mux *http.ServeMux) {
 		respond(w, http.StatusOK, "FIXME: list all the possible actions")
 	})
 
-	mux.HandleFunc("/api/login/", loginHandler)
+	mux.HandleFunc("/api/login", loginHandler)
 }
