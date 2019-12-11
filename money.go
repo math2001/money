@@ -10,8 +10,6 @@ import (
 	"path/filepath"
 )
 
-const store = "store"
-
 func main() {
 	if len(os.Args) != 2 {
 		log.Fatal("Invalid number of arguments: \n   $ money <mode>")
@@ -63,15 +61,13 @@ func CLIMode() {
 	fmt.Println("============================")
 	fmt.Println()
 
+	log.Fatalf("not implemented")
+
 	// FIXME: how can we make sure that the user can easily check that *this*
 	// program is asking for the password, and some other random thing?
 
-	if err := os.MkdirAll(store, os.ModePerm); err != nil {
-		log.Fatalf("makdir store: %s", err)
-	}
-
-	cli := &Cli{}
-	cli.Start()
+	// cli := &Cli{}
+	// cli.Start()
 }
 
 var ErrOddParts = errors.New("cannot generate map from odd number of parts")
