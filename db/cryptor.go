@@ -9,6 +9,9 @@ package db
 // in CBC (cipher block chanining) mode because (1) recommends it.
 // (1) https://cromwell-intl.com/cybersecurity/cipher-selection.html
 
+// cryptor could (should) be private. I've just bounced between private and
+// public so many times now, I'm don't wanna change it...
+
 import (
 	"bytes"
 	"crypto/aes"

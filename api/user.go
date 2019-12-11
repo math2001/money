@@ -26,7 +26,7 @@ func (api *API) SignUp(email, password []byte) (*db.User, error) {
 	// check taken entry in users file
 	f, err := os.Open(api.userslist)
 	if err != nil {
-		// TODO: could send an email to that guy...
+		// TODO: could send an email to email (apologise)
 		return nil, fmt.Errorf("signing up, opening users list %q: %s", api.userslist, err)
 	}
 	decoder := json.NewDecoder(f)
@@ -78,16 +78,55 @@ func (api *API) SignUp(email, password []byte) (*db.User, error) {
 		return nil, fmt.Errorf("signing up, saving user to database: %s", err)
 	}
 
-	// FIXME: safety check: make sure that privroot doesn't already exists.
-	privroot := filepath.Join(api.usersdir, strconv.Itoa(userid))
-	if err := os.MkdirAll(privroot, 0644); err != nil {
-		return nil, fmt.Errorf("signing up, creating user folder: %s", err)
-	}
-
-	return db.NewUser(privroot), nil
+	u := db.NewUser(filepath.Join(api.usersdir, strconv.Itoa(userid)), string(email))
+	u.SignUp(password)
+	return u, nil
 }
 
 func (api *API) Login(email, password []byte) (*db.User, error) {
-	// check entry matches (return nil on sucess)
-	panic("not implemented")
+
+	// FIXME: that's a lot of duplicate logic from sign up...
+
+	f, err := os.Open(api.userslist)
+	if err != nil {
+		// TODO: could send an email to email (apologise)
+		return nil, fmt.Errorf("signing up, opening users list %q: %s", api.userslist, err)
+	}
+	decoder := json.NewDecoder(f)
+
+	// FIXME: this is extrememly inefficient. It reads all the user data into
+	// memory just to compare emails and password pairs...
+	type user struct {
+		email    []byte
+		password []byte
+		id       int
+	}
+
+	var users []user
+	if err := decoder.Decode(&users); err != nil {
+		return nil, fmt.Errorf("signing up, parsing users list: %q: %s", api.userslist, err)
+	}
+
+	hashed, err := scrypt.Key(password, api.sm.Get(saltpassword), 32768, 8, 1, 32)
+	if err != nil {
+		return nil, fmt.Errorf("signing up, hashing password: %s", err)
+	}
+
+	var match user
+	// check if the email has already been used
+	for _, user := range users {
+		if bytes.Equal(user.email, email) && bytes.Equal(user.password, hashed) {
+			match = user
+			break
+		}
+	}
+
+	// ie. no match
+	if match.id == 0 {
+		return nil, ErrWrongIdentifiers
+	}
+
+	u := db.NewUser(filepath.Join(api.usersdir, strconv.Itoa(match.id)), string(email))
+	u.Login(password)
+	return u, nil
 }
