@@ -92,7 +92,11 @@ func (api *API) Initiate() error {
 // Serve starts a http server under /api/
 func (api *API) BindTo(mux *http.ServeMux) {
 	mux.HandleFunc("/api/", func(w http.ResponseWriter, r *http.Request) {
-		respond(w, http.StatusOK, "FIXME: list all the possible actions")
+		if r.URL.Path != "/api/" {
+			respond(w, http.StatusNotFound, "endpoint undefined")
+			return
+		}
+		respond(w, http.StatusOK, "FIXME: list all the possible endpoints")
 	})
 
 	mux.HandleFunc("/api/login", api.loginHandler)
