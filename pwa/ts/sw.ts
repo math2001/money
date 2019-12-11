@@ -41,12 +41,14 @@ self.addEventListener("fetch", (event: FetchEvent) => {
         });
         return resp;
       })
-      .catch((err: Error) => {
-        return caches
-          .match(event.request, { ignoreSearch: true })
-          .catch(resp => {
-            return resp || err;
-          });
+      .catch((fetcherr: Error) => {
+        return caches.match(event.request, { ignoreSearch: true }).catch(() => {
+          // that's not going to cut it, err isn't a valid response
+          // that doesn't matter, since we got here because the server
+          // *crashed* (the connection was reset).
+          console.log(fetcherr);
+          return fetcherr;
+        });
       })
   );
   log("done fetching");
