@@ -86,7 +86,7 @@ func TestKeysManagerMultipleSignUp(t *testing.T) {
 	}
 
 	err := km1.SignUp(password)
-	if err != ErrAlreadySignedUp {
+	if !errors.Is(err, ErrAlreadyLoaded) {
 		t.Fatalf("should have ErrAlreadyLoggedIn, got %s", err)
 	}
 }
@@ -108,7 +108,7 @@ func TestKeysManagerSignUpThenLogin(t *testing.T) {
 		t.Fatalf("signing up: %s", err)
 	}
 
-	if err := km1.Login(password); err != ErrAlreadyLoggedIn {
+	if err := km1.Login(password); !errors.Is(err, ErrAlreadyLoaded) {
 		t.Fatalf("should have ErrAlreadyLoggedIn, got %s", err)
 	}
 }
@@ -135,7 +135,7 @@ func TestKeysManagerMultipleLogin(t *testing.T) {
 		t.Fatalf("login in: %s", err)
 	}
 
-	if err := km2.Login(password); err != ErrAlreadyLoggedIn {
+	if err := km2.Login(password); !errors.Is(err, ErrAlreadyLoaded) {
 		t.Fatalf("should have ErrAlreadyLoggedIn, got %s", err)
 	}
 }

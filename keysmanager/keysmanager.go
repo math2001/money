@@ -39,83 +39,181 @@ import (
 	"golang.org/x/crypto/pbkdf2"
 )
 
-// I'm not sure what is the recommended way of checking whether an error
-// reveals that the priv directory is corrupted. Currently, every error which
-// does reveal corruption wrapps the underlying ErrPrivCorrupted. However, in
-// the stdlib, there are dedicated function (os.IsExist) which help interpret
-// errors (exactly what this wrapping trick is doing). Hence, we could also
-// have a function func IsPrivCorruted(err error) bool which would be like
-// err == ErrNoSaltsfile || err == ErrNoKeysfile || etc...
-// The reason I chose to take the first approach is that now that we have
-// errors.Is, it seems very natural to do: errors.Is(err, ErrPrivCorrupted).
-// CHECKME: Which one is the best approach? Why?
-// EDIT: I'm writing a blog post about it :-) search for error tagging math2001
+// all those errors shouldn't be exported because they aren't unsed anywhere
+// else in the app. *Only export when you need it please*
 
-// ErrPrivCorrupted is the underlying error which indicates that the priv
-// directory isn't right (missing file, altered keys, etc...)
+// ErrPrivCorrupted is tag error which indicates that the priv directory isn't
+// right (missing file, altered keys, etc...)
 var ErrPrivCorrupted = errors.New("priv directory corrupted")
-
-// ErrKeysfileExists is returned if the keysfile already exists
-var ErrKeysfileExists = errors.New("keysfile already exists")
-
-// ErrNoKeysfile is returned if there is no keysfile to read the keys from
-var ErrNoKeysfile = fmt.Errorf("no keys file (%w)", ErrPrivCorrupted)
 
 // ErrWrongPassword is returned when the hash store hashpasswordfile doesn't
 // match with the hash of the typed password. See Login function
 var ErrWrongPassword = errors.New("wrong password")
 
-// ErrAlreadyLoggedIn is returned by Login when the user tries to log in
-// multiple twice
-var ErrAlreadyLoggedIn = errors.New("already logged in")
-
-// ErrAlreadySignedUp is returned by SignUp when the user tries to sign up again
-var ErrAlreadySignedUp = errors.New("already signed up")
-
-// ErrNoPasswordHashFile is returned by Login if no password hash file is found
-var ErrNoPasswordHashFile = fmt.Errorf("no password hash file (%w)", ErrPrivCorrupted)
+// ErrAlreadyLoaded is a multi purpose tagging error used to indicate when an
+// action that should have been done only once was executed mulitple times. For
+// example, you will get this error if you try to login or load keys more than
+// once for example
+var ErrAlreadyLoaded = errors.New("already loaded")
 
 // KeysManager loads the different keys from a file (keysfile) and decrypts
 // them using the password. It can also generate new keys in place of the old
 // ones
 type KeysManager struct {
-	block    cipher.Block
-	privroot string
-	keysize  int
-	salts    salts
+	block   cipher.Block
+	keysize int
+	sm      *saltsManager
+
+	privroot         string
+	keysfile         string
+	passwordhashfile string
 }
 
-// Keys contains the *decrypted* keys. Plaintext. Be careful
-type Keys struct {
-	Encryption, MAC []byte
+// NewKeysManager create a new KeysManager with some sane default
+func NewKeysManager(privroot string) *KeysManager {
+
+	// the files in the priv folder don't *have* to be secret. Technically, you
+	// could share it with everyone, and this application should still be
+	// secure. However, it would make an attacker's job easier if he had
+	// acccess to them.
+
+	// keys.priv: the keys are encrypted with the user's password. Those keys
+	// are what Cryptor uses to encrypt user files
+
+	// salts: salts just have to be unique to fight against rainbow tables. If
+	// an attacker had access to those files before actually breaking into the
+	// application, he could generate a table of hashes using that salt to very
+	// quickly find the user's password (provided the it is somewhat common)
+
+	// passwordhash.priv: this is just a hash of the user's password. It is
+	// technically secure, but best kept secret.
+
+	km := &KeysManager{
+		privroot: privroot,
+		keysize:  32,
+	}
+
+	km.keysfile = filepath.Join(km.privroot, "keys")
+	km.passwordhashfile = filepath.Join(km.privroot, "passwordhash")
+
+	// CHECKME: the original saltsize was 16 I think... Is that fine?
+	km.sm = newSaltsManager(filepath.Join(km.privroot, "salts"), 32)
+	return km
 }
 
-// String prevents someone printing keys without realizing that they secret. If
-// he *really* wants to see the keys, he has to print them manually
-// (fmt.Println(keys.MAC))
-func (k Keys) String() string {
-	return fmt.Sprintf("[secret!] Keys{}")
+// SignUp makes the priv directory, creates the salts, password hash file and
+// generates new keys
+func (km *KeysManager) SignUp(password []byte) error {
+
+	err := os.Mkdir(km.privroot, 0755)
+	if os.IsExist(err) {
+		return fmt.Errorf("already signed up (%w)", ErrAlreadyLoaded)
+	}
+	if err != nil {
+		return fmt.Errorf("making privroot directory %q: %s", km.privroot, err)
+	}
+
+	if err := km.sm.generateNewSalts(); err != nil {
+		return fmt.Errorf("generating salts: %s", err)
+	}
+
+	passwordhash := pbkdf2.Key(password, km.sm.salts.password, 4096, 32, sha256.New)
+	if err := ioutil.WriteFile(km.passwordhashfile, []byte(hex.EncodeToString(passwordhash)), 0644); err != nil {
+		return fmt.Errorf("writing password hash to file: %s", err)
+	}
+
+	if err := km.generateNewKeys(password); err != nil {
+		return fmt.Errorf("generating new keys: %s", err)
+	}
+
+	cipherkey := pbkdf2.Key(password, km.sm.salts.cipher, 4096, 32, sha256.New)
+
+	cipher, err := aes.NewCipher(cipherkey)
+	if err != nil {
+		return fmt.Errorf("creating cipher: %s", err)
+	}
+
+	km.block = cipher
+
+	return nil
 }
 
-// Equal compares whether the fields are equal
-func (k Keys) Equal(target Keys) bool {
-	return bytes.Equal(k.MAC, target.MAC) && bytes.Equal(k.Encryption, target.Encryption)
+// FIXME: how do you transfer keys? Just copy paste the priv/ folder?
+
+// Login creates the block cipher from the password, which will then be used
+// to decrypt the keys from the file
+func (km *KeysManager) Login(password []byte) error {
+
+	// FIXME: export this to a function IsLoggedIn? How else could we check?
+	if km.block != nil {
+		return fmt.Errorf("logging in (%w)", ErrAlreadyLoaded)
+	}
+
+	var err error
+	if err := km.sm.loadSalts(); err != nil {
+		// wrap because this could contain the tag ErrPrivCorrupted
+		return fmt.Errorf("loading salts: %w", err)
+	}
+
+	// check that the password's hash matches the hash stored in passwordhashfile
+	// this is just extra feature to error as early as possible if the password
+	// is wrong. We could not do this step, and let the user log in with a
+	// wrong password: he decrypt his keys wrongly, and hence wouldn't be able
+	// to retrieve the original content from his files (padding error, or if
+	// he is lucky, gibberish)
+
+	hexpasswordhash, err := ioutil.ReadFile(km.passwordhashfile)
+	if err != nil {
+		return fmt.Errorf("reading from password hash file: %s (%w)", err, ErrPrivCorrupted)
+	}
+
+	passwordhash, err := hex.DecodeString(string(hexpasswordhash))
+	if err != nil {
+		return fmt.Errorf("decoding hex password hash: %s (%w)", err, ErrPrivCorrupted)
+	}
+
+	if !bytes.Equal(passwordhash, pbkdf2.Key(password, km.sm.salts.password, 4096, 32, sha256.New)) {
+		// that doesn't *actually* mean that the password is wrong. It could
+		// be that the stored hash is wrong, the that this password would sill
+		// succesfully decode the files. This however shouldn't happen, check
+		// FIXME above
+		return ErrWrongPassword
+	}
+
+	cipherkey := pbkdf2.Key(password, km.sm.salts.cipher, 4096, 32, sha256.New)
+
+	cipher, err := aes.NewCipher(cipherkey)
+	if err != nil {
+		return fmt.Errorf("creating cipher: %s", err)
+	}
+
+	km.block = cipher
+	return nil
+}
+
+// HasSignedUp returns true of the privroot directory exists, even if we can't
+// read from it. That's because if the user doesn't have the permission for
+// example, he won't be able to create his priv directory by signing up.
+// So, we let .Login report the error, because it will know best what to do
+// based (whereas this function is just general-purposed)
+func (km *KeysManager) HasSignedUp() bool {
+	_, err := os.Stat(km.privroot)
+	return err == nil || os.IsExist(err)
+}
+
+// RemovePrivroot removes permanantely the private folder. If you run that,
+// you loose your keys (ie. you won't be able to decrypt your files anymore)
+func (km *KeysManager) RemovePrivroot() error {
+	return os.RemoveAll(km.privroot)
 }
 
 // LoadKeys loads the keys from the keys file
 //
-// errors: ErrNoKeysFile, err
-//
 // FIXME: do something so that we ensure that we only load the keys once
 func (km *KeysManager) LoadKeys() (Keys, error) {
-	var keys Keys
-
-	f, err := os.Open(km.keysfile)
-	if os.IsNotExist(err) {
-		return keys, ErrNoKeysfile
-	}
+	f, err := os.Open(filepath.Join(km.privroot, "keys"))
 	if err != nil {
-		return keys, fmt.Errorf("opening keys file: %w", err)
+		return Keys{}, fmt.Errorf("opening keys file: %s (%w)", err, ErrPrivCorrupted)
 	}
 	defer f.Close()
 	reader := bufio.NewReader(f)
@@ -126,7 +224,8 @@ func (km *KeysManager) LoadKeys() (Keys, error) {
 			return nil, fmt.Errorf("read line from keysfile: %s", err)
 		}
 
-		ciphertext, err := hex.DecodeString(line)
+		// remove the line ending \n
+		ciphertext, err := hex.DecodeString(line[:len(line)-1])
 		if err != nil {
 			return nil, fmt.Errorf("decode hex key: %s", err)
 		}
@@ -150,6 +249,7 @@ func (km *KeysManager) LoadKeys() (Keys, error) {
 		return keyDecrypted, nil
 	}
 
+	var keys Keys
 	// first it's encryption, and then mac (alphabetical order)
 	keys.Encryption, err = decryptKey(reader)
 	if err != nil {
@@ -181,10 +281,12 @@ func (km *KeysManager) encryptKey(decryptedKey []byte) (string, error) {
 
 func (km *KeysManager) generateNewKeys(password []byte) error {
 	if _, err := os.Stat(km.keysfile); err == nil {
-		return ErrKeysfileExists
+		// we don't export that error, although it's static, because nowhere
+		// in the application should that happen
+		return fmt.Errorf("keysfile already exists")
 	}
 
-	cipherkey := pbkdf2.Key(password, km.salts.cipher, 4096, 32, sha256.New)
+	cipherkey := pbkdf2.Key(password, km.sm.salts.cipher, 4096, 32, sha256.New)
 
 	cipher, err := aes.NewCipher(cipherkey)
 	if err != nil {
@@ -229,7 +331,7 @@ func (km *KeysManager) ChangePassword(newpassword []byte) error {
 
 	// replace cipher(currentpassword) with a cipher(newpassword)
 
-	cipherkey := pbkdf2.Key(newpassword, km.salts.cipher, 4096, 32, sha256.New)
+	cipherkey := pbkdf2.Key(newpassword, km.sm.salts.cipher, 4096, 32, sha256.New)
 
 	cipher, err := aes.NewCipher(cipherkey)
 	if err != nil {
@@ -259,144 +361,4 @@ func (km *KeysManager) ChangePassword(newpassword []byte) error {
 		return fmt.Errorf("writing keysfile: %s", err)
 	}
 	return nil
-}
-
-// SignUp makes the priv directory, creates the salts, password hash file and
-// generates new keys
-func (km *KeysManager) SignUp(password []byte) error {
-
-	err := os.Mkdir(km.privroot, 0755)
-	if os.IsExist(err) {
-		return ErrAlreadySignedUp
-	}
-	if err != nil {
-		return fmt.Errorf("making privroot directory %q: %s", km.privroot, err)
-	}
-
-	km.salts, err = generateNewSalts(km.privroot)
-	if err != nil {
-		return fmt.Errorf("generating salts: %s", err)
-	}
-
-	passwordhash := pbkdf2.Key(password, km.salts.password, 4096, 32, sha256.New)
-	if err := ioutil.WriteFile(km.passwordhashfile, []byte(hex.EncodeToString(passwordhash)), 0644); err != nil {
-		return fmt.Errorf("writing password hash to file: %s", err)
-	}
-
-	if err := km.generateNewKeys(password); err != nil {
-		return fmt.Errorf("generating new keys: %s", err)
-	}
-
-	cipherkey := pbkdf2.Key(password, km.salts.cipher, 4096, 32, sha256.New)
-
-	cipher, err := aes.NewCipher(cipherkey)
-	if err != nil {
-		return fmt.Errorf("creating cipher: %s", err)
-	}
-
-	km.block = cipher
-
-	return nil
-}
-
-// FIXME: how do you transfer keys? Just copy paste the priv/ folder?
-
-// Login creates the block cipher from the password, which will then be used
-// to decrypt the keys from the file
-func (km *KeysManager) Login(password []byte) error {
-
-	// FIXME: export this to a function IsLoggedIn? How else could we check?
-	if km.block != nil {
-		return ErrAlreadyLoggedIn
-	}
-
-	var err error
-	km.salts, err = loadSalts(km.privroot)
-	if err != nil {
-		return fmt.Errorf("loading salts: %w", err)
-	}
-
-	// check that the password's hash matches the hash stored in passwordhashfile
-	// this is just extra feature to error as early as possible if the password
-	// is wrong. We could not do this step, and let the user log in with a
-	// wrong password: he decrypt his keys wrongly, and hence wouldn't be able
-	// to retrieve the original content from his files (padding error, or if
-	// he is lucky, gibberish)
-
-	hexpasswordhash, err := ioutil.ReadFile(km.passwordhashfile)
-	if os.IsNotExist(err) {
-		return ErrNoPasswordHashFile
-	}
-	if err != nil {
-		return fmt.Errorf("reading from password hash file: %s (%w)", err, ErrPrivCorrupted)
-	}
-
-	passwordhash, err := hex.DecodeString(string(hexpasswordhash))
-	if err != nil {
-		return fmt.Errorf("decoding hex password hash: %s (%w)", err, ErrPrivCorrupted)
-	}
-
-	if !bytes.Equal(passwordhash, pbkdf2.Key(password, km.salts.Password, 4096, 32, sha256.New)) {
-		// that doesn't *actually* mean that the password is wrong. It could
-		// be that the stored hash is wrong, the that this password would sill
-		// succesfully decode the files. This however shouldn't happen, check
-		// FIXME above
-		return ErrWrongPassword
-	}
-
-	cipherkey := pbkdf2.Key(password, km.salts.Cipher, 4096, 32, sha256.New)
-
-	cipher, err := aes.NewCipher(cipherkey)
-	if err != nil {
-		return fmt.Errorf("creating cipher: %s", err)
-	}
-
-	km.block = cipher
-	return nil
-}
-
-// HasSignedUp returns true of the privroot directory exists, even if we can't
-// read from it. That's because if the user doesn't have the permission for
-// example, he won't be able to create his priv directory by signing up.
-// So, we let .SignUp report the error, because it will know best what to do
-// based on the error (whereas this function is just general-purposed)
-func (km *KeysManager) HasSignedUp() bool {
-	_, err := os.Stat(km.privroot)
-	return err == nil || os.IsExist(err)
-}
-
-// RemovePrivroot removes permanantely the private folder. If you run that,
-// you loose your keys (ie. you won't be able to decrypt your files anymore)
-func (km *KeysManager) RemovePrivroot() error {
-	return os.RemoveAll(km.privroot)
-}
-
-// NewKeysManager create a new KeysManager with some sane default
-func NewKeysManager(privroot string) *KeysManager {
-
-	// the files in the priv folder don't *have* to be secret. Technically, you
-	// could share it with everyone, and this application should still be
-	// secure. However, it would make an attacker's job easier if he had
-	// acccess to them.
-
-	// keys.priv: the keys are encrypted with the user's password. Those keys
-	// are what Cryptor uses to encrypt user files
-
-	// salts: salts just have to be unique to fight against rainbow tables. If
-	// an attacker had access to those files before actually breaking into the
-	// application, he could generate a table of hashes using that salt to very
-	// quickly find the user's password (provided the it is somewhat common)
-
-	// passwordhash.priv: this is just a hash of the user's password. It is
-	// technically secure, but best kept secret.
-
-	km := &KeysManager{
-		privroot: privroot,
-		keysize:  32,
-	}
-
-	km.keysfile = filepath.Join(km.privroot, "keys.priv")
-	km.passwordhashfile = filepath.Join(km.privroot, "passwordhash.priv")
-
-	return km
 }

@@ -28,9 +28,19 @@ type saltsManager struct {
 	saltsfile string
 	// the saltsize, in byte
 	saltsize int
+	// the salts
+	salts *salts
 }
 
-func (sm *saltsManager) generateNewSalts(privroot string) (salts, error) {
+func newSaltsManager(saltsfile string, saltsize int) *saltsManager {
+	return &saltsManager{
+		saltsfile: saltsfile,
+		saltsize:  saltsize,
+		salts:     &salts{},
+	}
+}
+
+func (sm *saltsManager) generateNewSalts() error {
 	generateNewSalt := func() ([]byte, error) {
 		salt := make([]byte, sm.saltsize)
 		if _, err := io.ReadFull(rand.Reader, salt); err != nil {
@@ -40,32 +50,31 @@ func (sm *saltsManager) generateNewSalts(privroot string) (salts, error) {
 	}
 
 	var err error
-	var s salts
-	s.cipher, err = generateNewSalt()
+	sm.salts.cipher, err = generateNewSalt()
 	if err != nil {
-		return salts{}, err
+		return err
 	}
-	s.password, err = generateNewSalt()
+	sm.salts.password, err = generateNewSalt()
 	if err != nil {
-		return salts{}, err
+		return err
 	}
 
-	content := []byte(fmt.Sprintf("%x\n%x\n", s.cipher, s.password))
+	content := []byte(fmt.Sprintf("%x\n%x\n", sm.salts.cipher, sm.salts.password))
 	if err := ioutil.WriteFile(sm.saltsfile, content, 0644); err != nil {
-		return salts{}, fmt.Errorf("writing salts to file system: %s", err)
+		return fmt.Errorf("writing salts to file system: %s", err)
 	}
 
-	return s, nil
+	return nil
 }
 
-func (sm *saltsManager) loadSalts(privroot string) (salts, error) {
+func (sm *saltsManager) loadSalts() error {
+	if sm.salts == (&salts{}) {
+		return fmt.Errorf("already loaded salts (%w)", ErrAlreadyLoaded)
+	}
 
 	f, err := os.Open(sm.saltsfile)
-	if os.IsNotExist(err) {
-		return salts{}, ErrNoSaltsFile
-	}
 	if err != nil {
-		return salts{}, fmt.Errorf("opening saltsfile: %s", err)
+		return fmt.Errorf("opening saltsfile: %s (%w)", err, ErrPrivCorrupted)
 	}
 	defer f.Close()
 
@@ -73,24 +82,23 @@ func (sm *saltsManager) loadSalts(privroot string) (salts, error) {
 
 	hexcipher, err := reader.ReadString('\n')
 	if err != nil {
-		return salts{}, fmt.Errorf("reading cipher salt: %s", err)
+		return fmt.Errorf("reading cipher salt: %s", err)
 	}
 
 	hexpassword, err := reader.ReadString('\n')
 	if err != nil {
-		return salts{}, fmt.Errorf("reading password salt: %s", err)
+		return fmt.Errorf("reading password salt: %s", err)
 	}
 
-	s := salts{}
-	s.cipher, err = hex.DecodeString(hexcipher[:len(hexcipher)-1])
+	sm.salts.cipher, err = hex.DecodeString(hexcipher[:len(hexcipher)-1])
 	if err != nil {
-		return salts{}, err
+		return err
 	}
 
-	s.password, err = hex.DecodeString(hexpassword[:len(hexpassword)-1])
+	sm.salts.password, err = hex.DecodeString(hexpassword[:len(hexpassword)-1])
 	if err != nil {
-		return salts{}, err
+		return err
 	}
 
-	return s, nil
+	return nil
 }
