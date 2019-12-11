@@ -4,7 +4,7 @@ package db
 // Everything in their is encrypted using his password
 type User struct {
 	privroot string
-    cryptor: cyptor
+	cryptor  *cryptor
 }
 
 func (u *User) Save(filename string, plaintext []byte) error {

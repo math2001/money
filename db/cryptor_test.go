@@ -20,7 +20,7 @@ var keys [][]byte
 func TestBasicCryptor(t *testing.T) {
 	t.Parallel()
 	storefile := filepath.Join(storedir, "test-"+t.Name())
-	cryptor, err := NewCryptor(keys[0], keys[1])
+	cryptor, err := newCryptor(keys[0], keys[1])
 	if err != nil {
 		t.Fatalf("creating cryptor: %s", err)
 	}
@@ -45,7 +45,7 @@ func TestBasicCryptor(t *testing.T) {
 func TestDifferentCryptor(t *testing.T) {
 	t.Parallel()
 	storefile := filepath.Join(storedir, "test-"+t.Name())
-	cryptorw, err := NewCryptor(keys[2], keys[3])
+	cryptorw, err := newCryptor(keys[2], keys[3])
 	if err != nil {
 		t.Fatalf("creating writting cryptor: %s", err)
 	}
@@ -56,7 +56,7 @@ func TestDifferentCryptor(t *testing.T) {
 		t.Fatalf("saving to %s: %s", storefile, err)
 	}
 
-	cryptorr, err := NewCryptor(keys[2], keys[3])
+	cryptorr, err := newCryptor(keys[2], keys[3])
 	if err != nil {
 		t.Fatalf("create reading cryptor: %s", err)
 	}
