@@ -1,4 +1,4 @@
-package db
+package api
 
 import (
 	"bytes"
@@ -10,25 +10,20 @@ import (
 	"path/filepath"
 	"strconv"
 
+	"github.com/math2001/money/db"
 	"golang.org/x/crypto/scrypt"
 )
 
 var ErrEmailAlreadyUsed = errors.New("email already used")
 
-// UserDB is the folder containing all the user's data.
-// Everything in their is encrypted using his password
-type UserDB struct {
-	privroot string
-}
-
-type App struct {
+type API struct {
 	salt      []byte
 	root      string
 	userslist string
 	usersdir  string
 }
 
-func NewApp(root string) (*App, error) {
+func NewAPI(root string) (*API, error) {
 	// FIXME: the app should have it's own password (which would be required on
 	// start up), just like a regular user. The salt file and userslist could
 	// then be encrypted,
@@ -40,10 +35,10 @@ func NewApp(root string) (*App, error) {
 		// salts for testing
 	}
 	if err != nil {
-		return nil, fmt.Errorf("reading app salt: %s", err)
+		return nil, fmt.Errorf("reading api salt: %s", err)
 	}
 
-	return &App{
+	return &API{
 		salt:      salt,
 		root:      root,
 		userslist: filepath.Join(root, "users.list"),
@@ -52,15 +47,16 @@ func NewApp(root string) (*App, error) {
 }
 
 // SignUp creates a new user
+//
 // FIXME: this function can change the state of the application but still
 // return an error. It needs to clean up after itself if that happens, because
 // otherwise, we are left with a corrupted state
-func (app *App) SignUp(email, password []byte) (*UserDB, error) {
+func (api *API) SignUp(email, password []byte) (*db.User, error) {
 	// check taken entry in users file
-	f, err := os.Open(app.userslist)
+	f, err := os.Open(api.userslist)
 	if err != nil {
 		// TODO: could send an email to that guy...
-		return nil, fmt.Errorf("signing up, opening users list %q: %s", app.userslist, err)
+		return nil, fmt.Errorf("signing up, opening users list %q: %s", api.userslist, err)
 	}
 	decoder := json.NewDecoder(f)
 
@@ -74,7 +70,7 @@ func (app *App) SignUp(email, password []byte) (*UserDB, error) {
 
 	var users []user
 	if err := decoder.Decode(&users); err != nil {
-		return nil, fmt.Errorf("signing up, parsing users list: %q: %s", app.userslist, err)
+		return nil, fmt.Errorf("signing up, parsing users list: %q: %s", api.userslist, err)
 	}
 
 	// check if the email has already been used
@@ -84,7 +80,7 @@ func (app *App) SignUp(email, password []byte) (*UserDB, error) {
 		}
 	}
 
-	hashed, err := scrypt.Key(password, app.salt, 32768, 8, 1, 32)
+	hashed, err := scrypt.Key(password, api.salt, 32768, 8, 1, 32)
 	if err != nil {
 		return nil, fmt.Errorf("signing up, hashing password: %s", err)
 	}
@@ -111,23 +107,15 @@ func (app *App) SignUp(email, password []byte) (*UserDB, error) {
 	}
 
 	// FIXME: safety check: make sure that privroot doesn't already exists.
-	privroot := filepath.Join(app.usersdir, strconv.Itoa(userid))
+	privroot := filepath.Join(api.usersdir, strconv.Itoa(userid))
 	if err := os.MkdirAll(privroot, 0644); err != nil {
 		return nil, fmt.Errorf("signing up, creating user folder: %s", err)
 	}
-	return &UserDB{
-		privroot: privroot,
-	}, nil
+
+	return db.NewUser(privroot), nil
 }
 
-// func Login(password []byte) (*UserDB, error) {
-// 	// check entry matches (return nil on sucess)
-// }
-
-// func (u *UserDB) Save(filename string, plaintext []byte) error {
-
-// }
-
-// func (u *UserDB) Load(filename string) ([]byte, error) {
-
-// }
+func (api *API) Login(password []byte) (*db.User, error) {
+	// check entry matches (return nil on sucess)
+	panic("not implemented")
+}

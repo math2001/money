@@ -37,13 +37,13 @@ var ErrInvalidPadding = errors.New("invalid padding")
 
 // Cryptor is a simple API which writes and read encrypted files using the
 // password given to the constructor
-type Cryptor struct {
+type cryptor struct {
 	block cipher.Block
 	mac   hash.Hash
 }
 
 // Load opens <filename>, decrypts its content, and returns it
-func (c *Cryptor) Load(filename string) ([]byte, error) {
+func (c *cryptor) Load(filename string) ([]byte, error) {
 	content, err := ioutil.ReadFile(filename)
 	if err != nil {
 		return nil, fmt.Errorf("reading file: %s", err)
@@ -98,7 +98,7 @@ func (c *Cryptor) Load(filename string) ([]byte, error) {
 }
 
 // Save encrypts plaintext and saves it to filename
-func (c *Cryptor) Save(filename string, plaintext []byte) error {
+func (c *cryptor) Save(filename string, plaintext []byte) error {
 	iv, err := generateiv(c.block.BlockSize())
 	if err != nil {
 		return err
@@ -106,7 +106,7 @@ func (c *Cryptor) Save(filename string, plaintext []byte) error {
 	return c.saveWithIV(filename, plaintext, iv)
 }
 
-func (c *Cryptor) saveWithIV(filename string, plaintext []byte, iv []byte) error {
+func (c *cryptor) saveWithIV(filename string, plaintext []byte, iv []byte) error {
 	blocksize := c.block.BlockSize()
 
 	// the number of padding bytes required
@@ -138,16 +138,16 @@ func (c *Cryptor) saveWithIV(filename string, plaintext []byte, iv []byte) error
 	return nil
 }
 
-// NewCryptor creates a new cryptor which saves/loads encrypted files using
+// newCryptor creates a new cryptor which saves/loads encrypted files using
 // the mackey and the enckey
-func NewCryptor(MACKey, encryptionKey []byte) (*Cryptor, error) {
+func newCryptor(MACKey, encryptionKey []byte) (*cryptor, error) {
 
 	block, err := aes.NewCipher(encryptionKey)
 	if err != nil {
 		return nil, fmt.Errorf("new cipher: %w", err)
 	}
 
-	return &Cryptor{
+	return &cryptor{
 		block: block,
 		mac:   hmac.New(sha256.New, MACKey),
 	}, nil

@@ -1,4 +1,24 @@
-package db
+/*
+keysmanager stores secret keys encrypted with a password. It creates its own
+directory with the 3 different files that it needs
+
+    keys:
+
+        the keys encrypted with scrypt(userPassword, saltK). userPassword is
+        the same for every different key, it's just the salt that changes
+
+    salts:
+
+        the salts, stored in clear text
+
+    passwordhash:
+
+        contains the password hash. It's just a utility to be able to tell
+        whether the user gave the right password when he tries to log in. It
+        doesn't make the system any more secure (we could let the user go
+        through, and he would just wrongly decrypt the keys)
+*/
+package keysmanager
 
 import (
 	"bufio"
@@ -15,6 +35,7 @@ import (
 	"os"
 	"path/filepath"
 
+	// FIXME: please use scrypt!!
 	"golang.org/x/crypto/pbkdf2"
 )
 
@@ -58,16 +79,15 @@ var ErrNoPasswordHashFile = fmt.Errorf("no password hash file (%w)", ErrPrivCorr
 // them using the password. It can also generate new keys in place of the old
 // ones
 type KeysManager struct {
-	block                       cipher.Block
-	privroot, keysfile, saltdir string
-	passwordhashfile            string
-	keysize                     int
-	salts                       *Salts
+	block    cipher.Block
+	privroot string
+	keysize  int
+	salts    salts
 }
 
 // Keys contains the *decrypted* keys. Plaintext. Be careful
 type Keys struct {
-	MAC, Encryption []byte
+	Encryption, MAC []byte
 }
 
 // String prevents someone printing keys without realizing that they secret. If
@@ -82,7 +102,10 @@ func (k Keys) Equal(target Keys) bool {
 	return bytes.Equal(k.MAC, target.MAC) && bytes.Equal(k.Encryption, target.Encryption)
 }
 
-// LoadKeys loads the keys from the file
+// LoadKeys loads the keys from the keys file
+//
+// errors: ErrNoKeysFile, err
+//
 // FIXME: do something so that we ensure that we only load the keys once
 func (km *KeysManager) LoadKeys() (Keys, error) {
 	var keys Keys
@@ -94,58 +117,50 @@ func (km *KeysManager) LoadKeys() (Keys, error) {
 	if err != nil {
 		return keys, fmt.Errorf("opening keys file: %w", err)
 	}
-	scanner := bufio.NewScanner(f)
-	counter := 0
+	defer f.Close()
+	reader := bufio.NewReader(f)
 
-	// FIXME: can this key loading process be a bit smoother? Please don't be
-	// too smart about it. I'm not sure there is a way
-	// FIXME: stop trying to load some fancy language. Just load the two keys,
-	// and assert you reach EOF
-	for scanner.Scan() && counter < 2 {
-		line := scanner.Text()
-		if line[0] == '#' || len(line) == 0 {
-			continue
-		}
-		keyEncrypted, err := hex.DecodeString(line)
+	decryptKey := func(reader *bufio.Reader) ([]byte, error) {
+		line, err := reader.ReadString('\n')
 		if err != nil {
-			return keys, fmt.Errorf("Decode hex key: %s", err)
+			return nil, fmt.Errorf("read line from keysfile: %s", err)
 		}
-		decryptedKey, err := km.decryptKey(keyEncrypted)
+
+		ciphertext, err := hex.DecodeString(line)
 		if err != nil {
-			return keys, fmt.Errorf("decrypting key: %s", err)
+			return nil, fmt.Errorf("decode hex key: %s", err)
 		}
-		if counter == 0 {
-			keys.MAC = decryptedKey
-		} else if counter == 1 {
-			keys.Encryption = decryptedKey
+
+		if len(ciphertext)%km.block.BlockSize() != 0 {
+			return nil, fmt.Errorf("length should be a multiple of blocksize, got %d", len(ciphertext))
 		}
-		counter++
+
+		iv := ciphertext[:km.block.BlockSize()]
+		keyEncrypted := ciphertext[km.block.BlockSize():]
+
+		keyDecrypted := make([]byte, len(keyEncrypted))
+
+		mode := cipher.NewCBCDecrypter(km.block, iv)
+		mode.CryptBlocks(keyDecrypted, keyEncrypted)
+
+		if len(keyDecrypted) != km.keysize {
+			return nil, fmt.Errorf("length should be %d, got %d", km.keysize, len(keyDecrypted))
+		}
+
+		return keyDecrypted, nil
 	}
-	if err := scanner.Err(); err != nil {
-		return keys, fmt.Errorf("scanning keys file: %s", err)
+
+	// first it's encryption, and then mac (alphabetical order)
+	keys.Encryption, err = decryptKey(reader)
+	if err != nil {
+		return keys, err
+	}
+
+	keys.MAC, err = decryptKey(reader)
+	if err != nil {
+		return keys, err
 	}
 	return keys, nil
-}
-
-func (km *KeysManager) decryptKey(ciphertext []byte) ([]byte, error) {
-	if len(ciphertext)%km.block.BlockSize() != 0 {
-		// CHECKME: can I safely give more information here?
-		return nil, fmt.Errorf("length should be a multiple of blocksize")
-	}
-
-	iv := ciphertext[:km.block.BlockSize()]
-	keyEncrypted := ciphertext[km.block.BlockSize():]
-
-	keyDecrypted := make([]byte, len(keyEncrypted))
-
-	mode := cipher.NewCBCDecrypter(km.block, iv)
-	mode.CryptBlocks(keyDecrypted, keyEncrypted)
-
-	if len(keyDecrypted) != km.keysize {
-		return nil, fmt.Errorf("length should be %d, got %d", km.keysize, len(keyDecrypted))
-	}
-
-	return keyDecrypted, nil
 }
 
 // encryptKey encrypts the given key with the current cipher, and then hex
@@ -169,7 +184,7 @@ func (km *KeysManager) generateNewKeys(password []byte) error {
 		return ErrKeysfileExists
 	}
 
-	cipherkey := pbkdf2.Key(password, km.salts.Cipher, 4096, 32, sha256.New)
+	cipherkey := pbkdf2.Key(password, km.salts.cipher, 4096, 32, sha256.New)
 
 	cipher, err := aes.NewCipher(cipherkey)
 	if err != nil {
@@ -204,15 +219,6 @@ func (km *KeysManager) generateNewKeys(password []byte) error {
 	return nil
 }
 
-// RemoveKeysfile deletes the current keysfile. The keys stored will be
-// permanantely lost
-func (km *KeysManager) RemoveKeysfile() error {
-	if err := os.Remove(km.keysfile); err != nil {
-		return fmt.Errorf("removing %q keys file: %s", km.keysfile, err)
-	}
-	return nil
-}
-
 // ChangePassword changes the user's password. Note that the user must already
 // be logged in. If it isn't case, use set password
 func (km *KeysManager) ChangePassword(newpassword []byte) error {
@@ -223,7 +229,7 @@ func (km *KeysManager) ChangePassword(newpassword []byte) error {
 
 	// replace cipher(currentpassword) with a cipher(newpassword)
 
-	cipherkey := pbkdf2.Key(newpassword, km.salts.Cipher, 4096, 32, sha256.New)
+	cipherkey := pbkdf2.Key(newpassword, km.salts.cipher, 4096, 32, sha256.New)
 
 	cipher, err := aes.NewCipher(cipherkey)
 	if err != nil {
@@ -272,7 +278,7 @@ func (km *KeysManager) SignUp(password []byte) error {
 		return fmt.Errorf("generating salts: %s", err)
 	}
 
-	passwordhash := pbkdf2.Key(password, km.salts.Password, 4096, 32, sha256.New)
+	passwordhash := pbkdf2.Key(password, km.salts.password, 4096, 32, sha256.New)
 	if err := ioutil.WriteFile(km.passwordhashfile, []byte(hex.EncodeToString(passwordhash)), 0644); err != nil {
 		return fmt.Errorf("writing password hash to file: %s", err)
 	}
@@ -281,7 +287,7 @@ func (km *KeysManager) SignUp(password []byte) error {
 		return fmt.Errorf("generating new keys: %s", err)
 	}
 
-	cipherkey := pbkdf2.Key(password, km.salts.Cipher, 4096, 32, sha256.New)
+	cipherkey := pbkdf2.Key(password, km.salts.cipher, 4096, 32, sha256.New)
 
 	cipher, err := aes.NewCipher(cipherkey)
 	if err != nil {
@@ -390,7 +396,6 @@ func NewKeysManager(privroot string) *KeysManager {
 	}
 
 	km.keysfile = filepath.Join(km.privroot, "keys.priv")
-	km.saltdir = filepath.Join(km.privroot, "salts")
 	km.passwordhashfile = filepath.Join(km.privroot, "passwordhash.priv")
 
 	return km
