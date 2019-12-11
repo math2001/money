@@ -38,7 +38,6 @@ func usage() {
 func generateHexKey(args ...string) {
 	if len(args) != 1 {
 		fmt.Println("generate-hex-keys nkeys")
-
 	}
 
 	nkeys, err := strconv.Atoi(args[0])

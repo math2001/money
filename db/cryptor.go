@@ -1,10 +1,8 @@
-/*
-Cryptor is simple utility which manages the loading and saving of encrypted
-files. All it needs is two secure and secret keys: MAC key and an encryption
-key
-*/
+package db
 
-package main
+// Cryptor is simple utility which manages the loading and saving of encrypted
+// files. All it needs is two secure and secret keys: MAC key and an encryption
+// key
 
 // I'm not sure at all how files should be encrypted, which is partly why I'm
 // building this app. Currently, we are using AES, because it's the standard,
@@ -99,6 +97,15 @@ func (c *Cryptor) Load(filename string) ([]byte, error) {
 	return plaintext[:len(plaintext)-npadding], nil
 }
 
+// Save encrypts plaintext and saves it to filename
+func (c *Cryptor) Save(filename string, plaintext []byte) error {
+	iv, err := generateiv(c.block.BlockSize())
+	if err != nil {
+		return err
+	}
+	return c.saveWithIV(filename, plaintext, iv)
+}
+
 func (c *Cryptor) saveWithIV(filename string, plaintext []byte, iv []byte) error {
 	blocksize := c.block.BlockSize()
 
@@ -129,15 +136,6 @@ func (c *Cryptor) saveWithIV(filename string, plaintext []byte, iv []byte) error
 	}
 
 	return nil
-}
-
-// Save encrypts plaintext and saves it to filename
-func (c *Cryptor) Save(filename string, plaintext []byte) error {
-	iv, err := generateiv(c.block.BlockSize())
-	if err != nil {
-		return err
-	}
-	return c.saveWithIV(filename, plaintext, iv)
 }
 
 // NewCryptor creates a new cryptor which saves/loads encrypted files using
