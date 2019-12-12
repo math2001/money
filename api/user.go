@@ -21,7 +21,7 @@ var ErrWrongIdentifiers = errors.New("wrong identifiers")
 type user struct {
 	Email    string
 	Password []byte
-	Id       int
+	ID       int
 }
 
 // SignUp creates a new user
@@ -33,7 +33,7 @@ type user struct {
 // FIXME: this is extrememly inefficient. It reads all the user data into
 // memory just to compare emails and possibly add one entry
 func (api *API) SignUp(email, password string) (*db.User, error) {
-	log.Printf("sign up %q", email)
+	log.Printf("Sign up %q", email)
 
 	// check taken entry in users file
 	f, err := os.Open(api.userslist)
@@ -47,11 +47,11 @@ func (api *API) SignUp(email, password string) (*db.User, error) {
 	if err := decoder.Decode(&users); err != nil {
 		return nil, fmt.Errorf("signing up, parsing users list: %q: %s", api.userslist, err)
 	}
-	fmt.Printf("got %d users\n", len(users))
 
 	// check if the email has already been used
 	for _, user := range users {
 		if user.Email == email {
+			log.Printf("Return email already used")
 			return nil, ErrEmailAlreadyUsed
 		}
 	}
@@ -67,7 +67,7 @@ func (api *API) SignUp(email, password string) (*db.User, error) {
 	users = append(users, user{
 		Email:    email,
 		Password: hashedpassword,
-		Id:       userid,
+		ID:       userid,
 	})
 	fmt.Printf("new users list: %v\n", users)
 
@@ -83,8 +83,10 @@ func (api *API) SignUp(email, password string) (*db.User, error) {
 		return nil, fmt.Errorf("signing up, saving user to database: %s", err)
 	}
 
-	u := db.NewUser(filepath.Join(api.usersdir, strconv.Itoa(userid)), string(email))
-	u.SignUp([]byte(password))
+	u := db.NewUser(userid, email, filepath.Join(api.usersdir, strconv.Itoa(userid)))
+	if err := u.SignUp([]byte(password)); err != nil {
+		return nil, fmt.Errorf("signing up db.User: %s", err)
+	}
 	return u, nil
 }
 
@@ -121,11 +123,11 @@ func (api *API) Login(email, password string) (*db.User, error) {
 	}
 
 	// ie. no match
-	if match.Id == 0 {
+	if match.ID == 0 {
 		return nil, ErrWrongIdentifiers
 	}
 
-	u := db.NewUser(filepath.Join(api.usersdir, strconv.Itoa(match.Id)), email)
+	u := db.NewUser(match.ID, match.Email, filepath.Join(api.usersdir, strconv.Itoa(match.ID)))
 	u.Login([]byte(password))
 	return u, nil
 }

@@ -78,6 +78,12 @@ type API struct {
 	sessions *sessions.S
 }
 
+// Session is the content of the session cookie
+type Session struct {
+	ID    int
+	Email string
+}
+
 func NewAPI(dataroot string) (*API, error) {
 	log.Printf("API dataroot: %q", dataroot)
 
@@ -93,8 +99,11 @@ func NewAPI(dataroot string) (*API, error) {
 	// the datafoot folder doesn't exists, start from scratch
 	if _, err := os.Stat(dataroot); os.IsNotExist(err) {
 		log.Println("initiating fresh api...")
-		if err := os.Mkdir(dataroot, 0700); err != nil {
-			return nil, fmt.Errorf("mkdir %q: %s", dataroot, err)
+		if err := os.Mkdir(api.dataroot, 0700); err != nil {
+			return nil, fmt.Errorf("mkdir %q: %s", api.dataroot, err)
+		}
+		if err := os.Mkdir(api.usersdir, 0700); err != nil {
+			return nil, fmt.Errorf("mkdir %q: %s", api.usersdir, err)
 		}
 		if err := api.sm.GenerateNew(); err != nil {
 			return nil, fmt.Errorf("generating new salts: %s", err)

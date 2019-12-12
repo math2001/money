@@ -2,7 +2,6 @@ package api
 
 import (
 	"errors"
-	"fmt"
 	"log"
 	"net/http"
 )
@@ -22,15 +21,18 @@ func (api *API) loginHandler(w http.ResponseWriter, r *http.Request) {
 	if errors.Is(err, ErrWrongIdentifiers) {
 		respond(w, r, http.StatusOK, "wrong identification")
 		return
+	} else if err != nil {
+		log.Printf("[err] loging in: %s", err)
+		respond(w, r, http.StatusOK, "error", "msg", "internal error while logging in")
+		return
 	}
 
-	_ = user
+	api.sessions.Save(w, &Session{
+		ID:    user.ID,
+		Email: user.Email,
+	})
 
-	// write HTTP cookie
-	api.sm.Get(saltcookie)
-
-	// write success
-	respond(w, r, http.StatusOK, "success")
+	respond(w, r, http.StatusOK, "success", "goto", "/")
 }
 
 func (api *API) signupHandler(w http.ResponseWriter, r *http.Request) {
@@ -38,6 +40,10 @@ func (api *API) signupHandler(w http.ResponseWriter, r *http.Request) {
 		respond(w, r, http.StatusMethodNotAllowed, "method not allowed", "method", r.Method)
 		return
 	}
+
+	// FIXME: validate email and password
+	// email: regex and stdlib? or just strings.contains
+	// password: min length, evaluate strength?
 
 	email := r.PostFormValue("email")
 	password := r.PostFormValue("password")
@@ -57,11 +63,16 @@ func (api *API) signupHandler(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	fmt.Println("got user", user)
-	// write http cookie
+	if err := api.sessions.Save(w, &Session{
+		ID:    user.ID,
+		Email: user.Email,
+	}); err != nil {
+		log.Printf("[err] saving session: %s", err)
+		respond(w, r, http.StatusInternalServerError, "error", "msg", "failed to sign up user")
+		return
+	}
 
 	// FIXME: check session for where the user is coming from, and redirect him
 	// there (don't forget to remove that session item)
-	respond(w, r, http.StatusOK, "goto", "goto", "/")
-
+	respond(w, r, http.StatusOK, "success", "goto", "/", "email", email)
 }

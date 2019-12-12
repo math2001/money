@@ -24,21 +24,19 @@ export default class SignUp {
       throw new Error("no .form-status element in login page");
     }
     this.formstatus = formstatus;
-  }
 
-  setup() {
     this.form.addEventListener("submit", this.submitForm.bind(this));
   }
+
+  setup() {}
 
   submitForm(e: Event) {
     e.preventDefault();
     this.formstatus.innerHTML = "Sending request...";
 
-    console.log(this.form.action);
     fetch(this.form.action, {
       method: "post",
-      body: new FormData(this.form),
-      redirect: "error"
+      body: new FormData(this.form)
     })
       .then((resp: Response) => resp.text())
       .then((text: string) => {
@@ -53,23 +51,23 @@ export default class SignUp {
   }
 
   postsignup(obj: any) {
-    if (obj["kind"] === "error") {
-      console.error(obj);
-    }
-    if (obj["kind"] !== "goto") {
+    if (obj["kind"] !== "success") {
       // FIXME: send minimal error report automatically, and maybe show the
       // user. Don't wanna constantly interupt the users flow
       console.error("response:", obj);
-      throw new Error("expected 'goto' response, got 'error'");
+      throw new Error("expected 'success' response");
     }
 
+    if (obj.email === undefined) {
+      console.error("response:", obj);
+      throw new Error("no email field in 'success' response");
+    }
+
+    EM.emit(EM.loggedin, obj["email"]);
     EM.emit(EM.browseto, obj["goto"]);
   }
 
   teardown() {
-    this.section.classList.remove("active");
-    this.form.removeEventListener("submit", this.submitForm.bind(this));
-
     // FIXME: check that this unfocus any field in the current form
     this.form.blur();
   }

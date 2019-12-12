@@ -68,7 +68,7 @@ func (secret) String() string {
 	return "[secret]"
 }
 
-func (s *S) Save(w http.ResponseWriter, obj map[string]interface{}) error {
+func (s *S) Save(w http.ResponseWriter, obj interface{}) error {
 	payload, err := json.Marshal(obj)
 	if err != nil {
 		return fmt.Errorf("marshaling obj: %s", err)
@@ -117,7 +117,7 @@ func (s *S) Save(w http.ResponseWriter, obj map[string]interface{}) error {
 	return nil
 }
 
-func (s *S) Load(r *http.Request) (map[string]interface{}, error) {
+func (s *S) Load(r *http.Request) (interface{}, error) {
 	cookie, err := r.Cookie(s.cookieName)
 	if err == http.ErrNoCookie {
 		return nil, nil

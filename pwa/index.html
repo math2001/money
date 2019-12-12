@@ -10,12 +10,18 @@
 <body>
 
 <main>
-<section id="home">
-  <h2>Money</h2>
-  <p>Welcome to money! You can <a href="/login">Login</a></p>
+<section class="page" id="home">
+    <section class="foruser">
+        <h2>Money</h2>
+        <p>Not much to see here <span fill-with="useremail"></span></p>
+    </section>
+    <section class="forvisitor">
+        <h2>Money</h2>
+        <p>Welcome to money! You can <a href="/login">Login</a> or <a href="/signup">Sign up</a></p>
+    </section>
 </section>
 
-<section id="login">
+<section class="page" id="login">
     <h2>Login</h2>
     <form action="/api/login" class="login-form" method="post">
         <p>
@@ -34,7 +40,7 @@
     <p>Don't have a login yet? <a href="/signup">Sign up</a>!</p>
 </section>
 
-<section id="signup">
+<section class="page" id="signup">
     <h2>Sign up</h2>
     <form action="/api/signup" class="signup-form" method="post">
         <p>
@@ -61,7 +67,7 @@
     </form>
 </section>
 
-<section id="err404">
+<section class="page" id="err404">
   <h2>Section not found</h2>
   <p>
   Did you lose your way, or did we mess up? If you think <em>we</em> are

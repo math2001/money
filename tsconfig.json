@@ -2,7 +2,7 @@
     "compilerOptions": {
         "target": "es6",
         "module": "es6",
-        "lib": ["es6", "dom", "scripthost"],
+        "lib": ["es6", "dom", "dom.iterable", "scripthost"],
         "noImplicitAny": true,
         "removeComments": true,
         "inlineSourceMap": true,

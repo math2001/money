@@ -1,4 +1,4 @@
-import { EM } from "./utils.js";
+import { State, EM, qs } from "./utils.js";
 import Home from "./home.js";
 import Login from "./login.js";
 import SignUp from "./signup.js";
@@ -23,7 +23,7 @@ class App {
   constructor() {
     this.current = null;
 
-    const main = document.querySelector("main") as HTMLElement | null;
+    const main = qs(document, "main") as HTMLElement | null;
     if (main === null) {
       throw new Error("no main element");
     }
@@ -40,6 +40,17 @@ class App {
       console.info("browsing to", url);
       this.browseto(url);
       history.pushState({}, "", url);
+    });
+
+    EM.on(EM.loggedin, (useremail: string) => {
+      console.log(useremail);
+      State.useremail = useremail;
+      for (let node of document.querySelectorAll('[fill-with="useremail"]')) {
+        console.log(node);
+        node.textContent = useremail;
+      }
+      console.log(State);
+      console.log(State.useremail);
     });
 
     this.home = new Home(this.getSection("home"));
@@ -63,7 +74,6 @@ class App {
         e.preventDefault();
         e.stopImmediatePropagation();
         e.stopPropagation();
-        console.log(target.pathname);
         EM.emit(EM.browseto, target.pathname);
       }
       // otherwise, we just let the user browse to that URL like any old a tag

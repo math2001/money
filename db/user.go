@@ -11,8 +11,9 @@ import (
 // Everything in their is encrypted using his password
 type User struct {
 	// root is the user's own folder (see api.go)
+	ID      int
+	Email   string
 	root    string
-	email   string
 	cryptor *Cryptor
 }
 
@@ -29,17 +30,16 @@ func (u *User) Login(password []byte) error {
 }
 
 func (u *User) SignUp(password []byte) error {
-	// FIXME: safety check: make sure that privroot doesn't already exists.
-	if err := os.MkdirAll(u.root, 0644); err != nil {
+	if err := os.Mkdir(u.root, 0700); err != nil {
 		return fmt.Errorf("signing up, creating user folder: %s", err)
 	}
-
-	panic("not implemented")
+	return nil
 }
 
-func NewUser(root, email string) *User {
+func NewUser(id int, email, root string) *User {
 	return &User{
 		root:  root,
-		email: email,
+		Email: email,
+		ID:    id,
 	}
 }
