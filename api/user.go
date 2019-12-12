@@ -108,15 +108,12 @@ func (api *API) Login(email, password string) (*db.User, error) {
 		return nil, fmt.Errorf("signing up, parsing users list: %q: %s", api.userslist, err)
 	}
 
-	hashed, err := scrypt.Key([]byte(password), api.sm.Get(saltpassword), 32768, 8, 1, 32)
-	if err != nil {
-		return nil, fmt.Errorf("signing up, hashing password: %s", err)
-	}
+	hashedpassword := scryptKey([]byte(password), api.sm.Get(saltpassword))
 
 	var match user
 	// check if the email has already been used
 	for _, user := range users {
-		if user.Email == email && bytes.Equal(user.Password, hashed) {
+		if user.Email == email && bytes.Equal(user.Password, hashedpassword) {
 			match = user
 			break
 		}

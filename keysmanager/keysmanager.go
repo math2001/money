@@ -26,7 +26,6 @@ import (
 	"crypto/aes"
 	"crypto/cipher"
 	"crypto/rand"
-	"crypto/sha256"
 	"encoding/hex"
 	"errors"
 	"fmt"
@@ -35,8 +34,7 @@ import (
 	"os"
 	"path/filepath"
 
-	// FIXME: please use scrypt!!
-	"golang.org/x/crypto/pbkdf2"
+	"golang.org/x/crypto/scrypt"
 )
 
 // all those errors shouldn't be exported because they aren't unsed anywhere
@@ -123,7 +121,7 @@ func (km *KeysManager) SignUp(password []byte) error {
 		return fmt.Errorf("generating salts: %s", err)
 	}
 
-	passwordhash := pbkdf2.Key(password, km.sm.Get(saltPassword), 4096, 32, sha256.New)
+	passwordhash := scryptKey(password, km.sm.Get(saltPassword))
 	if err := ioutil.WriteFile(km.passwordhashfile, []byte(hex.EncodeToString(passwordhash)), 0644); err != nil {
 		return fmt.Errorf("writing password hash to file: %s", err)
 	}
@@ -132,7 +130,7 @@ func (km *KeysManager) SignUp(password []byte) error {
 		return fmt.Errorf("generating new keys: %s", err)
 	}
 
-	cipherkey := pbkdf2.Key(password, km.sm.Get(saltCipher), 4096, 32, sha256.New)
+	cipherkey := scryptKey(password, km.sm.Get(saltCipher))
 
 	cipher, err := aes.NewCipher(cipherkey)
 	if err != nil {
@@ -178,7 +176,7 @@ func (km *KeysManager) Login(password []byte) error {
 		return fmt.Errorf("decoding hex password hash: %s (%w)", err, ErrPrivCorrupted)
 	}
 
-	if !bytes.Equal(passwordhash, pbkdf2.Key(password, km.sm.Get(saltPassword), 4096, 32, sha256.New)) {
+	if !bytes.Equal(passwordhash, scryptKey(password, km.sm.Get(saltPassword))) {
 		// that doesn't *actually* mean that the password is wrong. It could
 		// be that the stored hash is wrong, the that this password would sill
 		// succesfully decode the files. This however shouldn't happen, check
@@ -186,7 +184,7 @@ func (km *KeysManager) Login(password []byte) error {
 		return ErrWrongPassword
 	}
 
-	cipherkey := pbkdf2.Key(password, km.sm.Get(saltCipher), 4096, 32, sha256.New)
+	cipherkey := scryptKey(password, km.sm.Get(saltCipher))
 
 	cipher, err := aes.NewCipher(cipherkey)
 	if err != nil {
@@ -292,7 +290,7 @@ func (km *KeysManager) generateNewKeys(password []byte) error {
 		return fmt.Errorf("keysfile already exists")
 	}
 
-	cipherkey := pbkdf2.Key(password, km.sm.Get(saltCipher), 4096, 32, sha256.New)
+	cipherkey := scryptKey(password, km.sm.Get(saltCipher))
 
 	cipher, err := aes.NewCipher(cipherkey)
 	if err != nil {
@@ -337,7 +335,7 @@ func (km *KeysManager) ChangePassword(newpassword []byte) error {
 
 	// replace cipher(currentpassword) with a cipher(newpassword)
 
-	cipherkey := pbkdf2.Key(newpassword, km.sm.Get(saltCipher), 4096, 32, sha256.New)
+	cipherkey := scryptKey(newpassword, km.sm.Get(saltCipher))
 
 	cipher, err := aes.NewCipher(cipherkey)
 	if err != nil {
@@ -367,4 +365,13 @@ func (km *KeysManager) ChangePassword(newpassword []byte) error {
 		return fmt.Errorf("writing keysfile: %s", err)
 	}
 	return nil
+}
+
+func scryptKey(payload, salt []byte) []byte {
+	const keysize = 32
+	k, err := scrypt.Key(payload, salt, 1<<15, 8, 1, keysize)
+	if err != nil {
+		panic(fmt.Sprintf("wrong parameters for scrypt key: %s", err))
+	}
+	return k
 }

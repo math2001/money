@@ -1,11 +1,11 @@
-- [ ] switch for to scrypt for password hashing
 - [ ] delete a store file
-- [ ] store location should be configurable
 - [ ] change password
 - [ ] change keys (without changing password)
-- [ ] there is one file per salt, but one file for every key... they should all be in one file
 - [ ] implement a warning system
 
+- [x] store location should be configurable
+- [x] there is one file per salt, but one file for every key... they should all be in one file
+- [x] switch for to scrypt for password hashing
 - [x] validate password
 - [x] fix the test!!
 - [x] salt should be in it's own file, and it should be automatically generated if it doesn't exists
