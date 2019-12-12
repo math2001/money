@@ -1,3 +1,4 @@
+import { EM } from "./utils.js";
 import Home from "./home.js";
 import Login from "./login.js";
 import SignUp from "./signup.js";
@@ -30,6 +31,11 @@ class App {
 
     this.main.addEventListener("click", this.proxyLinks.bind(this));
 
+    EM.on(EM.browseto, (url: string) => {
+      this.browseto(url);
+      history.pushState({}, "", url);
+    });
+
     this.home = new Home(this.getSection("home"));
     this.login = new Login(this.getSection("login"));
     this.err404 = new Err404(this.getSection("err404"));
@@ -45,14 +51,14 @@ class App {
   }
 
   proxyLinks(e: MouseEvent) {
-    const target = e.target as HTMLAnchorElement;
-    if (target.nodeName === "A") {
+    if (e.target !== null && (e.target as Node).nodeName === "A") {
+      const target = e.target as HTMLAnchorElement;
       if (this.router((target as HTMLHyperlinkElementUtils).pathname)) {
         e.preventDefault();
         e.stopImmediatePropagation();
         e.stopPropagation();
-        this.browseto(target.pathname);
-        history.pushState({}, "", target.pathname);
+        console.log(target.pathname);
+        EM.emit(EM.browseto, target.pathname);
       }
       // otherwise, we just let the user browse to that URL like any old a tag
       // would do

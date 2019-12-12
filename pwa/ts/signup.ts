@@ -1,3 +1,4 @@
+import { EM } from "./utils.js";
 // this is really similar to the login form... how could we reuse the code?
 
 export default class SignUp {
@@ -37,14 +38,19 @@ export default class SignUp {
     fetch(this.form.action, {
       method: "post",
       body: new FormData(this.form),
-      redirect: "manual"
+      redirect: "error"
     })
-      .then((resp: Response) => resp.json())
+      .then((r: Response) => r.json())
       .then(this.postsignup.bind(this));
   }
 
-  postsignup(resp: Response) {
-    console.log(resp);
+  postsignup(obj: any) {
+    if (obj["kind"] != "goto") {
+      // FIXME: send minimal error report automatically, and maybe show the
+      // user. Don't wanna constantly interupt the users flow
+    }
+
+    EM.emit(EM.browseto, obj["goto"]);
   }
 
   teardown() {

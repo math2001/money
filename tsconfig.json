@@ -5,7 +5,7 @@
         "lib": ["es6", "dom", "scripthost"],
         "noImplicitAny": true,
         "removeComments": true,
-        "sourceMap": true,
+        "inlineSourceMap": true,
         "forceConsistentCasingInFileNames": true,
         "strict": true,
         "outDir": "./pwa/js/"

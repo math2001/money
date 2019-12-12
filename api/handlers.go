@@ -55,6 +55,6 @@ func (api *API) signupHandler(w http.ResponseWriter, r *http.Request) {
 
 	// FIXME: check session for where the user is coming from, and redirect him
 	// there (don't forget to remove that session item)
-	http.Redirect(w, r, "/", http.StatusFound)
+	respond(w, r, http.StatusOK, "goto", "goto", "/")
 
 }
