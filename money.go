@@ -10,19 +10,13 @@ import (
 )
 
 func main() {
-	fmt.Println("Welcome to Money! [server mode]")
-	fmt.Println("===============================")
+	fmt.Println("Welcome to Money!")
+	fmt.Println("=================")
 	fmt.Println()
 
 	api, err := api.NewAPI("data")
 	if err != nil {
-		log.Fatalf("creating api: %s", err)
-	}
-
-	if api.IsUninitiated() {
-		fmt.Println("api is fresh (no data folder). Initiating now...")
-		api.Initiate()
-		fmt.Println("FIXME: give user a choice")
+		log.Fatalf("Creating api: %s", err)
 	}
 
 	mux := &http.ServeMux{}
@@ -43,7 +37,7 @@ func main() {
 		http.ServeFile(w, r, "pwa/index.html")
 	})
 
-	log.Printf("listening on :9999")
+	log.Printf("Ready. Listening on :9999")
 	if err := http.ListenAndServe(":9999", mux); err != nil {
 		log.Fatal(err)
 	}

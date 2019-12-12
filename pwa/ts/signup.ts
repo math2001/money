@@ -9,7 +9,7 @@ export default class SignUp {
     this.section = section;
 
     const form = this.section.querySelector(
-      "form.login-form"
+      "form.signup-form"
     ) as HTMLFormElement | null;
     if (form === null) {
       throw new Error("no form element in login page");

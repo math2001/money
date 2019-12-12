@@ -28,8 +28,33 @@ func (api *API) loginHandler(w http.ResponseWriter, r *http.Request) {
 	api.sm.Get(saltcookie)
 
 	// write success
-	if err := respond(w, http.StatusOK, "success"); err != nil {
-		log.Printf("%v writing success: %s", r, err)
+	respond(w, r, http.StatusOK, "success")
+}
+
+func (api *API) signupHandler(w http.ResponseWriter, r *http.Request) {
+	if r.Method != http.MethodPost {
+		respond(w, r, http.StatusMethodNotAllowed, "method not allowed", "method", r.Method)
+		return
 	}
+
+	email := r.PostFormValue("email")
+	password := r.PostFormValue("password")
+	confirm := r.PostFormValue("confirm")
+	if password != confirm {
+		respond(w, r, http.StatusExpectationFailed, "password dismatch")
+		return
+	}
+
+	user, err := api.SignUp([]byte(email), []byte(password))
+	if errors.Is(err, ErrEmailAlreadyUsed) {
+		respond(w, r, http.StatusNotAcceptable, "email already used")
+	}
+
+	_ = user
+	// write http cookie
+
+	// FIXME: check session for where the user is coming from, and redirect him
+	// there (don't forget to remove that session item)
+	http.Redirect(w, r, "/", http.StatusFound)
 
 }

@@ -4,6 +4,7 @@
 - [ ] change password
 - [ ] change keys (without changing password)
 - [ ] there is one file per salt, but one file for every key... they should all be in one file
+- [ ] implement a warning system
 
 - [x] validate password
 - [x] fix the test!!

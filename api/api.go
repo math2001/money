@@ -32,20 +32,14 @@ package api
 
 import (
 	"fmt"
+	"log"
 	"net/http"
 	"os"
 	"path/filepath"
 
 	"github.com/math2001/money/keysmanager"
+	"github.com/math2001/money/sessions"
 )
-
-type API struct {
-	dataroot  string
-	userslist string
-	usersdir  string
-	// this salt is used to hash the passwords in the database
-	sm *keysmanager.SM
-}
 
 const saltsize = 32
 
@@ -55,13 +49,65 @@ const (
 
 	// saltpasswod is used encrypt the passwords within the database
 	saltpassword
+
+	// saltsession is used to sign the cookies
+	// FIXME: this should be a key, and not a salt, but that'll mean that the
+	// application will need it's own keymanager, which leads to 2
+	// possibilities:
+	// 1. ask for a user input (password) everytime the api starts (= a pain)
+	// 2. store the keysmanager password in a file, which is equivalent to
+	// storing the keys as a salt (from a technical point of view, because this
+	// shouldn't be shared at all, unlike other salts who just need to be
+	// unique)
+	// 2nd solution is much better because we get a sense of which file are
+	// important to keep secret.
+	saltsession
+
+	// the number of salts I need
+	_nsalts
 )
 
+type API struct {
+	dataroot  string
+	userslist string
+	usersdir  string
+	// this salt is used to hash the passwords in the database
+	sm       *keysmanager.SM
+	sessions *sessions.S
+}
+
 func NewAPI(dataroot string) (*API, error) {
+	log.Printf("API dataroot: %q", dataroot)
+
 	saltfile := filepath.Join(dataroot, "appsalts")
-	sm := keysmanager.NewSaltsManager(2, saltfile, saltsize)
-	sm.Load()
+	sm := keysmanager.NewSaltsManager(_nsalts, saltfile, saltsize)
+
+	// the datafoot folder doesn't exists
+	if _, err := os.Stat(dataroot); os.IsNotExist(err) {
+		log.Println("initiating fresh api...")
+		if err := os.Mkdir(dataroot, 0700); err != nil {
+			return nil, fmt.Errorf("mkdir %q: %s", dataroot, err)
+		}
+		if err := sm.GenerateNew(); err != nil {
+			return nil, fmt.Errorf("generating new salts: %s", err)
+		}
+	} else {
+		log.Printf("Resuming from filesystem...")
+		if err := sm.Load(); err != nil {
+			return nil, fmt.Errorf("loading salt: %s", err)
+		}
+	}
+
+	s, err := sessions.NewS(&sessions.Config{
+		Key: sm.Get(saltsession),
+	})
+
+	if err != nil {
+		return nil, fmt.Errorf("creating sessions.S: %s", err)
+	}
+
 	return &API{
+		sessions:  s,
 		sm:        sm,
 		dataroot:  dataroot,
 		userslist: filepath.Join(dataroot, "users.list"),
@@ -69,35 +115,16 @@ func NewAPI(dataroot string) (*API, error) {
 	}, nil
 }
 
-// IsUninitiated checks if the API has already been running before (ie. there are
-// files it can resume serving from)
-func (api *API) IsUninitiated() bool {
-	if _, err := os.Stat(api.dataroot); os.IsNotExist(err) {
-		return true
-	}
-	return false
-}
-
-func (api *API) Initiate() error {
-	// FIXME: clean up after yourself if you return early (error)
-	if err := os.Mkdir(api.dataroot, 0600); err != nil {
-		return fmt.Errorf("mkdir %q: %s", api.dataroot, err)
-	}
-	if err := api.sm.GenerateNew(); err != nil {
-		return err
-	}
-	return nil
-}
-
 // Serve starts a http server under /api/
 func (api *API) BindTo(mux *http.ServeMux) {
 	mux.HandleFunc("/api/", func(w http.ResponseWriter, r *http.Request) {
 		if r.URL.Path != "/api/" {
-			respond(w, http.StatusNotFound, "endpoint undefined")
+			respond(w, r, http.StatusNotFound, "endpoint undefined")
 			return
 		}
-		respond(w, http.StatusOK, "FIXME: list all the possible endpoints")
+		respond(w, r, http.StatusOK, "FIXME: list all the possible endpoints")
 	})
 
 	mux.HandleFunc("/api/login", api.loginHandler)
+	mux.HandleFunc("/api/signup", api.signupHandler)
 }

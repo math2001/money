@@ -1,7 +1,7 @@
 .PHONY: run pwawatch build clean
 
 run: money
-	./money server
+	./money
 
 build:
 	# build the service worker

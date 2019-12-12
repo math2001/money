@@ -48,7 +48,7 @@ func NewSaltsManager(n int, file string, size int) *SM {
 func (sm *SM) GenerateNew() error {
 	f, err := os.Create(sm.file)
 	if err != nil {
-		return fmt.Errorf("creating %q: %s", sm.file, err)
+		return fmt.Errorf("creating salt file %q: %s", sm.file, err)
 	}
 	defer f.Close()
 
@@ -79,6 +79,8 @@ func (sm *SM) Load() error {
 
 	reader := bufio.NewReader(f)
 
+	sm.salts = make([]salt, sm.n)
+
 	for i := 0; i < sm.n; i++ {
 		hexsalt, err := reader.ReadString('\n')
 		if err != nil {
@@ -88,7 +90,7 @@ func (sm *SM) Load() error {
 		if err != nil {
 			return err
 		}
-		sm.salts = append(sm.salts, plainsalt)
+		sm.salts[i] = plainsalt
 
 		// FIXME: check if we reach EOF (otherwise we are corrupted)
 	}
@@ -98,5 +100,11 @@ func (sm *SM) Load() error {
 
 // GetSalt returns the ith salt (0 based). Panics if i >= n
 func (sm *SM) Get(i int) []byte {
+	// display friendlier panic
+	if len(sm.salts) == 0 {
+		panic("salts haven't been loaded")
+	} else if i >= sm.n {
+		panic(fmt.Sprintf("trying to load salt[%d], only got %d salts", i, sm.n))
+	}
 	return sm.salts[i]
 }
