@@ -69,7 +69,6 @@ func (api *API) SignUp(email, password string) (*db.User, error) {
 		Password: hashedpassword,
 		ID:       userid,
 	})
-	fmt.Printf("new users list: %v\n", users)
 
 	f.Close()
 	f, err = os.Create(api.userslist)

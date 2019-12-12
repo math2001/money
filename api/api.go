@@ -71,7 +71,7 @@ func NewAPI(dataroot string) (*API, error) {
 
 	// the datafoot folder doesn't exists, start from scratch
 	if _, err := os.Stat(dataroot); os.IsNotExist(err) {
-		log.Println("initiating fresh api...")
+		log.Println("Initiating fresh api...")
 		if err := os.Mkdir(api.dataroot, 0700); err != nil {
 			return nil, fmt.Errorf("mkdir %q: %s", api.dataroot, err)
 		}

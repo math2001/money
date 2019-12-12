@@ -3,7 +3,6 @@ package db
 import (
 	"bytes"
 	"encoding/hex"
-	"fmt"
 	"log"
 	"os"
 	"path/filepath"
@@ -81,7 +80,7 @@ func returningTestMain(m *testing.M) int {
 	}()
 
 	// FIXME: this isn't the right way to generate "random" predictable keys
-    // use math rand instead, and log the seed
+	// use math rand instead, and log the seed
 	var hexkeys = [...]string{
 		"9fca99b7144c5c2ca9e991b7cc080f2ade0b5127e34ce879004e83489907e242",
 		"998a17caf56a1b1a38c3e94cb41d9c5525d5688a87c8ef62b1e9d302da94120e",
@@ -109,7 +108,7 @@ func returningTestMain(m *testing.M) int {
 	for i, hexkey := range hexkeys {
 		key, err := hex.DecodeString(hexkey)
 		if err != nil {
-			fmt.Printf("[internal error] decoding pre-generated keys: %s\n", err)
+			log.Printf("[internal error] decoding pre-generated keys: %s\n", err)
 			return 1 // don't log.Fatal to allow for tear down
 		}
 		keys[i] = key

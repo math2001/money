@@ -14,7 +14,17 @@ func main() {
 	fmt.Println("=================")
 	fmt.Println()
 
-	api, err := api.NewAPI("data")
+	r := startAt("data")
+
+	http.Handle("/", r)
+	log.Printf("Ready. Listening on :9999")
+	if err := http.ListenAndServe(":9999", nil); err != nil {
+		log.Fatal(err)
+	}
+}
+
+func startAt(dataroot string) *mux.Router {
+	api, err := api.NewAPI(dataroot)
 	if err != nil {
 		log.Fatalf("Creating api: %s", err)
 	}
@@ -36,9 +46,5 @@ func main() {
 		http.ServeFile(w, r, "pwa/index.html")
 	})
 
-	http.Handle("/", r)
-	log.Printf("Ready. Listening on :9999")
-	if err := http.ListenAndServe(":9999", nil); err != nil {
-		log.Fatal(err)
-	}
+	return r
 }
