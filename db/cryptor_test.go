@@ -80,8 +80,8 @@ func returningTestMain(m *testing.M) int {
 		}
 	}()
 
-	// $ make money-tools
-	// $ money-tools generate-new-keys 20
+	// FIXME: this isn't the right way to generate "random" predictable keys
+    // use math rand instead, and log the seed
 	var hexkeys = [...]string{
 		"9fca99b7144c5c2ca9e991b7cc080f2ade0b5127e34ce879004e83489907e242",
 		"998a17caf56a1b1a38c3e94cb41d9c5525d5688a87c8ef62b1e9d302da94120e",
