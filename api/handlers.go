@@ -2,6 +2,8 @@ package api
 
 import (
 	"errors"
+	"fmt"
+	"log"
 	"net/http"
 )
 
@@ -48,9 +50,14 @@ func (api *API) signupHandler(w http.ResponseWriter, r *http.Request) {
 	user, err := api.SignUp([]byte(email), []byte(password))
 	if errors.Is(err, ErrEmailAlreadyUsed) {
 		respond(w, r, http.StatusNotAcceptable, "email already used")
+		return
+	} else if err != nil {
+		log.Printf("[err] signing up: %s", err)
+		respond(w, r, http.StatusInternalServerError, "error", "msg", "failed to sign up user")
+		return
 	}
 
-	_ = user
+	fmt.Println("got user", user)
 	// write http cookie
 
 	// FIXME: check session for where the user is coming from, and redirect him

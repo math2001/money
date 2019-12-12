@@ -40,14 +40,27 @@ export default class SignUp {
       body: new FormData(this.form),
       redirect: "error"
     })
-      .then((r: Response) => r.json())
+      .then((resp: Response) => resp.text())
+      .then((text: string) => {
+        try {
+          return JSON.parse(text);
+        } catch (e) {
+          console.info(text);
+          throw e;
+        }
+      })
       .then(this.postsignup.bind(this));
   }
 
   postsignup(obj: any) {
-    if (obj["kind"] != "goto") {
+    if (obj["kind"] === "error") {
+      console.error(obj);
+    }
+    if (obj["kind"] !== "goto") {
       // FIXME: send minimal error report automatically, and maybe show the
       // user. Don't wanna constantly interupt the users flow
+      console.error("response:", obj);
+      throw new Error("expected 'goto' response, got 'error'");
     }
 
     EM.emit(EM.browseto, obj["goto"]);

@@ -32,6 +32,12 @@ class App {
     this.main.addEventListener("click", this.proxyLinks.bind(this));
 
     EM.on(EM.browseto, (url: string) => {
+      if (url === undefined) {
+        console.trace();
+        throw new Error("browsing to undefined URL");
+      }
+
+      console.info("browsing to", url);
       this.browseto(url);
       history.pushState({}, "", url);
     });
