@@ -1,4 +1,4 @@
-import { EM } from "./utils.js";
+import { EM, qs } from "./utils.js";
 // this is really similar to the login form... how could we reuse the code?
 
 export default class SignUp {
@@ -9,23 +9,8 @@ export default class SignUp {
   constructor(section: HTMLElement) {
     this.section = section;
 
-    const form = this.section.querySelector(
-      "form.signup-form"
-    ) as HTMLFormElement | null;
-    if (form === null) {
-      throw new Error("no form element in login page");
-    }
-    this.form = form;
-
-    const formstatus = this.form.querySelector(
-      ".form-status"
-    ) as HTMLElement | null;
-    if (formstatus === null) {
-      throw new Error("no .form-status element in login page");
-    }
-    this.formstatus = formstatus;
-
-    this.form.addEventListener("submit", this.submitForm.bind(this));
+    this.form = qs(this.section, "form.login-form") as HTMLFormElement;
+    this.formstatus = qs(this.section, ".form-status");
   }
 
   setup() {}
@@ -67,8 +52,5 @@ export default class SignUp {
     EM.emit(EM.browseto, obj["goto"]);
   }
 
-  teardown() {
-    // FIXME: check that this unfocus any field in the current form
-    this.form.blur();
-  }
+  teardown() {}
 }

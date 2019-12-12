@@ -1,3 +1,5 @@
+import { qs } from "./utils.js";
+
 export default class Login {
   section: HTMLElement;
   form: HTMLFormElement;
@@ -6,21 +8,8 @@ export default class Login {
   constructor(section: HTMLElement) {
     this.section = section;
 
-    const form = this.section.querySelector(
-      "form.login-form"
-    ) as HTMLFormElement | null;
-    if (form === null) {
-      throw new Error("no form element in login page");
-    }
-    this.form = form;
-
-    const formstatus = this.form.querySelector(
-      ".form-status"
-    ) as HTMLElement | null;
-    if (formstatus === null) {
-      throw new Error("no .form-status element in login page");
-    }
-    this.formstatus = formstatus;
+    this.form = qs(this.section, "form.login-form") as HTMLFormElement;
+    this.formstatus = qs(this.section, ".form-status");
   }
 
   setup() {}
@@ -41,7 +30,5 @@ export default class Login {
     console.log(resp);
   }
 
-  teardown() {
-    this.form.removeEventListener("submit", this.submitForm.bind(this));
-  }
+  teardown() {}
 }

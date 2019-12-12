@@ -60,11 +60,7 @@ class App {
   }
 
   getSection(name: string): HTMLElement {
-    const section = document.querySelector("#" + name) as HTMLElement | null;
-    if (section === null) {
-      throw new Error(`Element (section) #${name} not found`);
-    }
-    return section;
+    return qs(document, "#" + name);
   }
 
   proxyLinks(e: MouseEvent) {
