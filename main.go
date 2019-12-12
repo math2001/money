@@ -42,17 +42,3 @@ func main() {
 		log.Fatal(err)
 	}
 }
-
-func CLIMode() {
-	fmt.Println("Welcome to Money! [cli mode]")
-	fmt.Println("============================")
-	fmt.Println()
-
-	log.Fatalf("not implemented")
-
-	// FIXME: how can we make sure that the user can easily check that *this*
-	// program is asking for the password, and some other random thing?
-
-	// cli := &Cli{}
-	// cli.Start()
-}
