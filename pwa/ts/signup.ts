@@ -33,15 +33,17 @@ export default class SignUp {
     e.preventDefault();
     this.formstatus.innerHTML = "Sending request...";
 
+    console.log(this.form.action);
     fetch(this.form.action, {
       method: "post",
-      body: new FormData(this.form)
+      body: new FormData(this.form),
+      redirect: "manual"
     })
       .then((resp: Response) => resp.json())
-      .then(this.postlogin.bind(this));
+      .then(this.postsignup.bind(this));
   }
 
-  postlogin(resp: Response) {
+  postsignup(resp: Response) {
     console.log(resp);
   }
 

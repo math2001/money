@@ -37,6 +37,7 @@ import (
 	"os"
 	"path/filepath"
 
+	"github.com/gorilla/mux"
 	"github.com/math2001/money/keysmanager"
 	"github.com/math2001/money/sessions"
 )
@@ -116,15 +117,17 @@ func NewAPI(dataroot string) (*API, error) {
 }
 
 // Serve starts a http server under /api/
-func (api *API) BindTo(mux *http.ServeMux) {
-	mux.HandleFunc("/api/", func(w http.ResponseWriter, r *http.Request) {
-		if r.URL.Path != "/api/" {
-			respond(w, r, http.StatusNotFound, "endpoint undefined")
-			return
-		}
+func (api *API) BindTo(r *mux.Router) {
+	r.HandleFunc("/", func(w http.ResponseWriter, r *http.Request) {
+		// if r.URL.Path != "/api/" {
+		// 	respond(w, r, http.StatusNotFound, "endpoint undefined")
+		// 	return
+		// }
 		respond(w, r, http.StatusOK, "FIXME: list all the possible endpoints")
 	})
 
-	mux.HandleFunc("/api/login", api.loginHandler)
-	mux.HandleFunc("/api/signup", api.signupHandler)
+	post := r.Methods(http.MethodPost).Subrouter()
+
+	post.HandleFunc("/login", api.loginHandler)
+	post.HandleFunc("/signup", api.signupHandler)
 }

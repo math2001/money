@@ -4,8 +4,8 @@ import (
 	"fmt"
 	"log"
 	"net/http"
-	"path/filepath"
 
+	"github.com/gorilla/mux"
 	"github.com/math2001/money/api"
 )
 
@@ -19,26 +19,26 @@ func main() {
 		log.Fatalf("Creating api: %s", err)
 	}
 
-	mux := &http.ServeMux{}
-	mux.Handle("/css/", http.StripPrefix("/css", http.FileServer(http.Dir("./pwa/css"))))
-	mux.HandleFunc("/js/", func(w http.ResponseWriter, r *http.Request) {
-		// the service worker needs a special header because it is served from
-		// ./js/ (hence it's max scope is ./js/), but I need it's scope to be /
-		if r.URL.Path == "/js/sw.js" {
-			w.Header().Set("Service-Worker-Allowed", "/")
-		}
+	r := mux.NewRouter()
+	html := r.Methods(http.MethodGet).Subrouter()
 
-		http.ServeFile(w, r, filepath.Join("./pwa", r.URL.Path))
+	html.PathPrefix("/css").Handler(http.StripPrefix("/css/", http.FileServer(http.Dir("./pwa/css"))))
+	html.HandleFunc("/js/sw.js", func(w http.ResponseWriter, r *http.Request) {
+		w.Header().Set("Service-Worker-Allowed", "/")
+		http.ServeFile(w, r, "/js/sw.js")
 	})
+	html.PathPrefix("/js").Handler(http.StripPrefix("/js/", http.FileServer(http.Dir("./pwa/js"))))
 
-	api.BindTo(mux)
+	api.BindTo(r.PathPrefix("/api").Subrouter())
 
-	mux.HandleFunc("/", func(w http.ResponseWriter, r *http.Request) {
+	html.PathPrefix("/").HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		log.Printf("Serving html to %q %q", r.Method, r.URL)
 		http.ServeFile(w, r, "pwa/index.html")
 	})
 
+	http.Handle("/", r)
 	log.Printf("Ready. Listening on :9999")
-	if err := http.ListenAndServe(":9999", mux); err != nil {
+	if err := http.ListenAndServe(":9999", nil); err != nil {
 		log.Fatal(err)
 	}
 }
