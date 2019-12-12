@@ -11,34 +11,48 @@ type loginInfos struct {
 	username int
 }
 
-func (api *API) loginHandler(w http.ResponseWriter, r *http.Request) {
-	if r.Method != http.MethodPost {
-		respond(w, r, http.StatusMethodNotAllowed, "method not allowed", "method", r.Method)
-		return
-	}
-
+func (api *API) loginHandler(r *http.Request) *resp {
 	user, err := api.Login(r.PostFormValue("email"), r.PostFormValue("password"))
 	if errors.Is(err, ErrWrongIdentifiers) {
-		respond(w, r, http.StatusOK, "wrong identification")
-		return
+		return &resp{
+			code: http.StatusOK, // FIXME: better error code?
+			msg: kv{
+				"kind": "wrong identifiers",
+			},
+		}
 	} else if err != nil {
 		log.Printf("[err] loging in: %s", err)
-		respond(w, r, http.StatusOK, "error", "msg", "internal error while logging in")
-		return
+		return &resp{
+			code: http.StatusInternalServerError,
+			msg: kv{
+				"kind": "internal error",
+				"msg":  "logging in",
+			},
+		}
 	}
 
-	api.sessions.Save(w, &Session{
-		ID:    user.ID,
-		Email: user.Email,
-	})
-
-	respond(w, r, http.StatusOK, "success", "goto", "/")
+	return &resp{
+		code: http.StatusOK,
+		session: &Session{
+			ID:    user.ID,
+			Email: user.Email,
+		},
+		msg: kv{
+			"kind": "success",
+			"goto": "/",
+		},
+	}
 }
 
-func (api *API) signupHandler(w http.ResponseWriter, r *http.Request) {
+func (api *API) signupHandler(r *http.Request) *resp {
 	if r.Method != http.MethodPost {
-		respond(w, r, http.StatusMethodNotAllowed, "method not allowed", "method", r.Method)
-		return
+		return &resp{
+			code: http.StatusMethodNotAllowed,
+			msg: kv{
+				"kind":   "method not allowed",
+				"method": r.Method,
+			},
+		}
 	}
 
 	// FIXME: validate email and password
@@ -49,30 +63,46 @@ func (api *API) signupHandler(w http.ResponseWriter, r *http.Request) {
 	password := r.PostFormValue("password")
 	confirm := r.PostFormValue("confirm")
 	if password != confirm {
-		respond(w, r, http.StatusExpectationFailed, "password dismatch")
-		return
+		return &resp{
+			code: http.StatusExpectationFailed,
+			msg: kv{
+				"kind": "password dismatch",
+			},
+		}
 	}
 
 	user, err := api.SignUp(email, password)
 	if errors.Is(err, ErrEmailAlreadyUsed) {
-		respond(w, r, http.StatusNotAcceptable, "email already used")
-		return
+		return &resp{
+			code: http.StatusNotAcceptable,
+			msg: kv{
+				"kind": "email already used",
+			},
+		}
 	} else if err != nil {
 		log.Printf("[err] signing up: %s", err)
-		respond(w, r, http.StatusInternalServerError, "error", "msg", "failed to sign up user")
-		return
-	}
-
-	if err := api.sessions.Save(w, &Session{
-		ID:    user.ID,
-		Email: user.Email,
-	}); err != nil {
-		log.Printf("[err] saving session: %s", err)
-		respond(w, r, http.StatusInternalServerError, "error", "msg", "failed to sign up user")
-		return
+		return &resp{
+			code: http.StatusInternalServerError,
+			msg: kv{
+				"kind": "internal error",
+				"msg":  "failed to sign up user",
+			},
+		}
 	}
 
 	// FIXME: check session for where the user is coming from, and redirect him
 	// there (don't forget to remove that session item)
-	respond(w, r, http.StatusOK, "success", "goto", "/", "email", email)
+
+	return &resp{
+		code: http.StatusOK,
+		session: &Session{
+			ID:    user.ID,
+			Email: user.Email,
+		},
+		msg: kv{
+			"kind":  "success",
+			"goto":  "/",
+			"email": email,
+		},
+	}
 }

@@ -31,12 +31,15 @@ Data folder structure:
 package api
 
 import (
+	"encoding/json"
 	"fmt"
 	"io/ioutil"
 	"log"
 	"net/http"
 	"os"
 	"path/filepath"
+	"reflect"
+	"runtime"
 
 	"github.com/gorilla/mux"
 	"github.com/math2001/money/keysmanager"
@@ -133,15 +136,67 @@ func NewAPI(dataroot string) (*API, error) {
 // Serve starts a http server under /api/
 func (api *API) BindTo(r *mux.Router) {
 	r.HandleFunc("/", func(w http.ResponseWriter, r *http.Request) {
-		// if r.URL.Path != "/api/" {
-		// 	respond(w, r, http.StatusNotFound, "endpoint undefined")
-		// 	return
-		// }
 		respond(w, r, http.StatusOK, "FIXME: list all the possible endpoints")
 	})
 
 	post := r.Methods(http.MethodPost).Subrouter()
 
-	post.HandleFunc("/login", api.loginHandler)
-	post.HandleFunc("/signup", api.signupHandler)
+	post.HandleFunc("/login", api.h(api.loginHandler))
+	post.HandleFunc("/signup", api.h(api.signupHandler))
+}
+
+// key value
+type kv map[string]interface{}
+type resp struct {
+	code    int
+	msg     kv
+	session *Session
+}
+type handler func(r *http.Request) *resp
+
+// h transforms an api.handler func to http.HandlerFunc
+func (api *API) h(h handler) http.HandlerFunc {
+	handlerName := getFuncName(h)
+
+	return func(w http.ResponseWriter, r *http.Request) {
+		resp := h(r)
+		encoder := json.NewEncoder(w)
+		if resp.msg == nil {
+			resp.code = http.StatusInternalServerError
+			// FIXME: implement warning system
+			log.Printf("[err] API handler %s: resp.msg == nil", handlerName)
+			resp.msg = kv{
+				"kind": "internal error",
+				"msg":  "no response from API",
+			}
+		} else if _, ok := resp.msg["kind"]; !ok {
+			resp.code = http.StatusInternalServerError
+			// FIXME: implement warning system
+			log.Printf("[err] API handler %s: no \"kind\" key in resp.msg", handlerName)
+			resp.msg = kv{
+				"kind": "internal error",
+				"msg":  "API response was invalid",
+			}
+		} else {
+			if resp.session != nil {
+				if err := api.sessions.Save(w, resp.session); err != nil {
+					log.Printf("[err] saving session: %s", err)
+					resp.code = http.StatusInternalServerError
+					resp.msg = kv{
+						"kind": "internal error",
+						"msg":  "errored saving session cookie",
+					}
+				}
+			}
+		}
+
+		w.WriteHeader(resp.code)
+		if err := encoder.Encode(resp.msg); err != nil {
+			log.Printf("[err] encoding json object in %s: %s", handlerName, err)
+		}
+	}
+}
+
+func getFuncName(i interface{}) string {
+	return runtime.FuncForPC(reflect.ValueOf(i).Pointer()).Name()
 }
