@@ -9,7 +9,7 @@ export default class SignUp {
   constructor(section: HTMLElement) {
     this.section = section;
 
-    this.form = qs(this.section, "form.login-form") as HTMLFormElement;
+    this.form = qs(this.section, "form.signup-form") as HTMLFormElement;
     this.formstatus = qs(this.section, ".form-status");
   }
 
