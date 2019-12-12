@@ -18,7 +18,7 @@ func (api *API) loginHandler(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	user, err := api.Login([]byte(r.PostFormValue("email")), []byte(r.PostFormValue("password")))
+	user, err := api.Login(r.PostFormValue("email"), r.PostFormValue("password"))
 	if errors.Is(err, ErrWrongIdentifiers) {
 		respond(w, r, http.StatusOK, "wrong identification")
 		return
@@ -47,7 +47,7 @@ func (api *API) signupHandler(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	user, err := api.SignUp([]byte(email), []byte(password))
+	user, err := api.SignUp(email, password)
 	if errors.Is(err, ErrEmailAlreadyUsed) {
 		respond(w, r, http.StatusNotAcceptable, "email already used")
 		return

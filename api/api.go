@@ -32,6 +32,7 @@ package api
 
 import (
 	"fmt"
+	"io/ioutil"
 	"log"
 	"net/http"
 	"os"
@@ -80,40 +81,44 @@ type API struct {
 func NewAPI(dataroot string) (*API, error) {
 	log.Printf("API dataroot: %q", dataroot)
 
-	saltfile := filepath.Join(dataroot, "appsalts")
-	sm := keysmanager.NewSaltsManager(_nsalts, saltfile, saltsize)
+	api := &API{
+		dataroot:  dataroot,
+		userslist: filepath.Join(dataroot, "users.list"),
+		usersdir:  filepath.Join(dataroot, "users"),
+	}
 
-	// the datafoot folder doesn't exists
+	saltfile := filepath.Join(dataroot, "appsalts")
+	api.sm = keysmanager.NewSaltsManager(_nsalts, saltfile, saltsize)
+
+	// the datafoot folder doesn't exists, start from scratch
 	if _, err := os.Stat(dataroot); os.IsNotExist(err) {
 		log.Println("initiating fresh api...")
 		if err := os.Mkdir(dataroot, 0700); err != nil {
 			return nil, fmt.Errorf("mkdir %q: %s", dataroot, err)
 		}
-		if err := sm.GenerateNew(); err != nil {
+		if err := api.sm.GenerateNew(); err != nil {
 			return nil, fmt.Errorf("generating new salts: %s", err)
 		}
+		if err := ioutil.WriteFile(api.userslist, []byte("[]"), 0644); err != nil {
+			return nil, fmt.Errorf("writing {} file")
+		}
+
 	} else {
 		log.Printf("Resuming from filesystem...")
-		if err := sm.Load(); err != nil {
+		if err := api.sm.Load(); err != nil {
 			return nil, fmt.Errorf("loading salt: %s", err)
 		}
 	}
 
-	s, err := sessions.NewS(&sessions.Config{
-		Key: sm.Get(saltsession),
+	var err error
+	api.sessions, err = sessions.NewS(&sessions.Config{
+		Key: api.sm.Get(saltsession),
 	})
 
 	if err != nil {
 		return nil, fmt.Errorf("creating sessions.S: %s", err)
 	}
-
-	return &API{
-		sessions:  s,
-		sm:        sm,
-		dataroot:  dataroot,
-		userslist: filepath.Join(dataroot, "users.list"),
-		usersdir:  filepath.Join(dataroot, "users"),
-	}, nil
+	return api, nil
 }
 
 // Serve starts a http server under /api/

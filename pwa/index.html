@@ -73,15 +73,13 @@
 </main>
 
 <script>
-    if ('serviceWorker' in navigator) {
+    if (false && 'serviceWorker' in navigator) {
       navigator.serviceWorker.register('/js/sw.js', {scope: '/'})
       .then(() => {
         console.info('Service worker registered!')
       }).catch(err => {
         console.error("service worker didn't register...", err)
       })
-    } else {
-      alert("no service worker for you...")
     }
 </script>
 
