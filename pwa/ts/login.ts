@@ -23,9 +23,7 @@ export default class Login {
     this.formstatus = formstatus;
   }
 
-  setup() {
-    this.form.addEventListener("submit", this.submitForm.bind(this));
-  }
+  setup() {}
 
   submitForm(e: Event) {
     e.preventDefault();
@@ -44,10 +42,6 @@ export default class Login {
   }
 
   teardown() {
-    this.section.classList.remove("active");
     this.form.removeEventListener("submit", this.submitForm.bind(this));
-
-    // FIXME: check that this unfocus any field in the current form
-    this.form.blur();
   }
 }
