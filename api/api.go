@@ -105,14 +105,35 @@ func NewAPI(dataroot string) (*API, error) {
 
 // Serve starts a http server under /api/
 func (api *API) BindTo(r *mux.Router) {
-	r.HandleFunc("/", func(w http.ResponseWriter, r *http.Request) {
-		respond(w, r, http.StatusOK, "FIXME: list all the possible endpoints")
-	})
+	r.HandleFunc("/", api.h(func(r *http.Request) *resp {
+		return &resp{
+			code: http.StatusOK,
+			msg: kv{
+				"kind":        "not implemented",
+				"description": "it will list all the different endpoints",
+			},
+		}
+	}))
 
 	post := r.Methods(http.MethodPost).Subrouter()
 
 	post.HandleFunc("/login", api.h(api.loginHandler))
 	post.HandleFunc("/signup", api.h(api.signupHandler))
+
+	// make sure this stays at the bottom of the function
+	r.PathPrefix("/").HandlerFunc(api.h(func(r *http.Request) *resp {
+		return &resp{
+			code: http.StatusBadRequest,
+			msg: kv{
+				"kind": "bad request",
+				"msg":  "request didn't match any known route",
+				"help": []string{
+					"make sure you are using the right method (POST instead of GET for example)",
+				},
+				"FIXME": "if this matches a known POST route, display a usage message (which should be automatically generated)",
+			},
+		}
+	}))
 }
 
 // key value
@@ -130,6 +151,7 @@ func (api *API) h(h handler) http.HandlerFunc {
 
 	return func(w http.ResponseWriter, r *http.Request) {
 		resp := h(r)
+		w.Header().Set("Content-Type", "application/json; charset=utf-8")
 		encoder := json.NewEncoder(w)
 		if resp.msg == nil {
 			resp.code = http.StatusInternalServerError

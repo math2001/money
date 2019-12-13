@@ -23,7 +23,7 @@ func TestLegalMethods(t *testing.T) {
 	}
 
 	var logs strings.Builder
-	logs.WriteRune('\n')
+	logs.WriteString("Logs:\n")
 	log.SetOutput(&logs)
 
 	defer func() {
@@ -31,7 +31,6 @@ func TestLegalMethods(t *testing.T) {
 			t.Fatalf("remove temporary test dir: %s", err)
 		}
 	}()
-	t.Logf("dataroot: %s", dataroot)
 
 	r := startAt(dataroot)
 
@@ -58,7 +57,7 @@ func TestLegalMethods(t *testing.T) {
 			headers: headers{"Content-Type": "text/html; charset=utf-8"},
 		},
 		httptest.NewRequest("GET", "/api", nil): resp{
-			code:    http.StatusPermanentRedirect,
+			code:    http.StatusMovedPermanently,
 			headers: headers{"Location": "/api/"},
 		},
 		httptest.NewRequest("GET", "/api/", nil): resp{
