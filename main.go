@@ -2,8 +2,10 @@ package main
 
 import (
 	"fmt"
+	"io"
 	"log"
 	"net/http"
+	"os"
 	"strings"
 
 	"github.com/gorilla/mux"
@@ -15,21 +17,21 @@ func main() {
 	fmt.Println("=================")
 	fmt.Println()
 
-	r := startAt("data")
+	handler := getHandler("data", os.Stdout)
 
-	http.Handle("/", r)
 	log.Printf("Ready. Listening on :9999")
-	if err := http.ListenAndServe(":9999", nil); err != nil {
+	if err := http.ListenAndServe(":9999", handler); err != nil {
 		log.Fatal(err)
 	}
 }
 
-func startAt(dataroot string) *mux.Router {
+func getHandler(dataroot string, logs io.Writer) http.Handler {
 	api, err := api.NewAPI(dataroot)
 	if err != nil {
 		log.Fatalf("Creating api: %s", err)
 	}
-	_ = api
+
+	log.SetOutput(logs)
 
 	r := mux.NewRouter().StrictSlash(true)
 	api.BindTo(r.PathPrefix("/api").Subrouter())
@@ -47,9 +49,17 @@ func startAt(dataroot string) *mux.Router {
 			// FIXME: implement warning system
 			log.Printf("serving %q GET request with html", r.URL.Path)
 		}
-		log.Printf("Serving html to %q %q", r.Method, r.URL)
 		http.ServeFile(w, r, "pwa/index.html")
 	})
 
+	r.Use(logger)
+
 	return r
+}
+
+func logger(next http.Handler) http.Handler {
+	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		log.Printf("%q %q", r.Method, r.URL.Path)
+		next.ServeHTTP(w, r)
+	})
 }

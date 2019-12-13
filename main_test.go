@@ -2,7 +2,6 @@ package main
 
 import (
 	"io/ioutil"
-	"log"
 	"net/http"
 	"net/http/httptest"
 	"os"
@@ -22,17 +21,15 @@ func TestLegalMethods(t *testing.T) {
 		t.Fatalf("removing temporary directory: %s", err)
 	}
 
-	var logs strings.Builder
-	logs.WriteString("Logs:\n")
-	log.SetOutput(&logs)
-
 	defer func() {
 		if err := os.RemoveAll("test-tmp-" + t.Name()); err != nil {
 			t.Fatalf("remove temporary test dir: %s", err)
 		}
 	}()
 
-	r := startAt(dataroot)
+	var logs strings.Builder
+	logs.WriteString("Logs:\n")
+	handler := getHandler(dataroot, &logs)
 
 	type headers map[string]string
 	type resp struct {
@@ -64,9 +61,9 @@ func TestLegalMethods(t *testing.T) {
 			code:    http.StatusOK,
 			headers: headers{"Content-Type": "application/json; charset=utf-8"},
 		},
-		// httptest.NewRequest("POST", "/api/login", nil): resp{
-		// 	headers: headers{"Content-Type": "application/json; charset=utf-8"},
-		// },
+		httptest.NewRequest("POST", "/api/login", nil): resp{
+			headers: headers{"Content-Type": "application/json; charset=utf-8"},
+		},
 		httptest.NewRequest("POST", "/api/signup", nil): resp{
 			headers: headers{"Content-Type": "application/json; charset=utf-8"},
 		},
@@ -74,7 +71,7 @@ func TestLegalMethods(t *testing.T) {
 
 	for req, expected := range cases {
 		recorder := httptest.NewRecorder()
-		r.ServeHTTP(recorder, req)
+		handler.ServeHTTP(recorder, req)
 		resp := recorder.Result()
 		if expected.code != 0 && resp.StatusCode != expected.code {
 			t.Errorf("%q: status code: got %d expected %d", req.URL.Path, resp.StatusCode, expected.code)
