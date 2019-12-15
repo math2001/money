@@ -38,6 +38,9 @@ type SM struct {
 
 // NewSaltsManager will store in clear n salts of length size byte in file
 func NewSaltsManager(n int, file string, size int) *SM {
+	if n <= 0 {
+		panic(fmt.Sprintf("n should be greater or equal to 0, got %d", n))
+	}
 	return &SM{
 		n:    n,
 		file: file,
@@ -45,6 +48,8 @@ func NewSaltsManager(n int, file string, size int) *SM {
 	}
 }
 
+// GenerateNew will generate some new salts (in place of the current ones if
+// they do exist)
 func (sm *SM) GenerateNew() error {
 	f, err := os.Create(sm.file)
 	if err != nil {
@@ -59,13 +64,17 @@ func (sm *SM) GenerateNew() error {
 		if _, err := io.CopyN(w, rand.Reader, int64(sm.size)); err != nil {
 			return fmt.Errorf("writing salt #%d to file %q: %s", i, sm.file, err)
 		}
+		// don't use buf.Bytes() because it returns a slice (ie. a reference),
+		// not a copy
+		sm.salts = append(sm.salts, []byte(buf.String()))
 		f.Write([]byte("\n"))
-		sm.salts = append(sm.salts, buf.Bytes())
 		buf.Reset()
 	}
 	return nil
 }
 
+// Load loads the salts from the file. This isn't done automatically by .Get
+// so that .Get can always return without an error
 func (sm *SM) Load() error {
 	if len(sm.salts) > 0 {
 		return fmt.Errorf("already loaded salts (%w)", ErrAlreadyLoaded)
@@ -91,8 +100,15 @@ func (sm *SM) Load() error {
 			return err
 		}
 		sm.salts[i] = plainsalt
+		if len(plainsalt) != sm.size {
+			return fmt.Errorf("corrupted salt, length %d, expected %d (%w)", len(plainsalt), sm.size, ErrPrivCorrupted)
+		}
 
 		// FIXME: check if we reach EOF (otherwise we are corrupted)
+	}
+	_, err = reader.ReadString('\n')
+	if err != io.EOF {
+		return fmt.Errorf("expected EOF (%w)", ErrPrivCorrupted)
 	}
 
 	return nil
@@ -102,7 +118,7 @@ func (sm *SM) Load() error {
 func (sm *SM) Get(i int) []byte {
 	// display friendlier panic
 	if len(sm.salts) == 0 {
-		panic("salts haven't been loaded")
+		panic(".Load hasn't been called")
 	} else if i >= sm.n {
 		panic(fmt.Sprintf("trying to load salt[%d], only got %d salts", i, sm.n))
 	}
