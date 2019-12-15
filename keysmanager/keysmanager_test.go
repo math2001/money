@@ -1,8 +1,13 @@
 package keysmanager
 
 import (
+	"crypto/rand"
+	"encoding/hex"
 	"errors"
+	"io"
 	"io/ioutil"
+	"os"
+	"path/filepath"
 	"testing"
 )
 
@@ -11,7 +16,7 @@ import (
 
 func TestKeysManagerBasic(t *testing.T) {
 	t.Parallel()
-	privroot := "test-priv-" + t.Name()
+	privroot := getTemporaryPath(t, "test-priv-"+t.Name())
 	km := NewKeysManager(privroot)
 	defer func() {
 		if err := km.RemovePrivroot(); err != nil {
@@ -46,7 +51,7 @@ func TestKeysManagerBasic(t *testing.T) {
 
 func TestKeysManagerWrongPassword(t *testing.T) {
 	t.Parallel()
-	privroot := "test-priv-" + t.Name()
+	privroot := getTemporaryPath(t, "test-priv-"+t.Name())
 
 	km1 := NewKeysManager(privroot)
 	defer func() {
@@ -71,7 +76,7 @@ func TestKeysManagerWrongPassword(t *testing.T) {
 func TestKeysManagerMultipleSignUp(t *testing.T) {
 	t.Parallel()
 
-	privroot := "test-priv-" + t.Name()
+	privroot := getTemporaryPath(t, "test-priv-"+t.Name())
 
 	km1 := NewKeysManager(privroot)
 	defer func() {
@@ -94,7 +99,7 @@ func TestKeysManagerMultipleSignUp(t *testing.T) {
 func TestKeysManagerSignUpThenLogin(t *testing.T) {
 	t.Parallel()
 
-	privroot := "test-priv-" + t.Name()
+	privroot := getTemporaryPath(t, "test-priv-"+t.Name())
 
 	km1 := NewKeysManager(privroot)
 	defer func() {
@@ -116,7 +121,7 @@ func TestKeysManagerSignUpThenLogin(t *testing.T) {
 func TestKeysManagerMultipleLogin(t *testing.T) {
 	t.Parallel()
 
-	privroot := "test-priv-" + t.Name()
+	privroot := getTemporaryPath(t, "test-priv-"+t.Name())
 
 	km1 := NewKeysManager(privroot)
 	defer func() {
@@ -147,7 +152,7 @@ func TestKeysManagerMultipleLogin(t *testing.T) {
 // what you get for trying to test a hack
 func TestKeysManagerCorruptPasswordHashFile(t *testing.T) {
 	t.Parallel()
-	privroot := "test-priv-" + t.Name()
+	privroot := getTemporaryPath(t, "test-priv-"+t.Name())
 	km1 := NewKeysManager(privroot)
 	defer func() {
 		if err := km1.RemovePrivroot(); err != nil {
@@ -184,4 +189,14 @@ func TestKeysManagerCorruptPasswordHashFile(t *testing.T) {
 		t.Fatalf("error %q should wrap ErrPrivCorrupted", err)
 	}
 
+}
+
+func getTemporaryPath(t *testing.T, prefix string) string {
+	// FIXME: loop while result path exists, with limit
+	tempdir := os.TempDir()
+	random := make([]byte, 16)
+	if _, err := io.ReadFull(rand.Reader, random); err != nil {
+		t.Fatalf("generating random name: %s", err)
+	}
+	return filepath.Join(tempdir, prefix+hex.EncodeToString(random))
 }
