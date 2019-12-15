@@ -126,10 +126,6 @@ func (km *KeysManager) SignUp(password []byte) error {
 		return fmt.Errorf("writing password hash to file: %s", err)
 	}
 
-	if err := km.generateNewKeys(password); err != nil {
-		return fmt.Errorf("generating new keys: %s", err)
-	}
-
 	cipherkey := scryptKey(password, km.sm.Get(saltCipher))
 
 	cipher, err := aes.NewCipher(cipherkey)
@@ -138,6 +134,10 @@ func (km *KeysManager) SignUp(password []byte) error {
 	}
 
 	km.block = cipher
+
+	if err := km.generateNewKeys(); err != nil {
+		return fmt.Errorf("generating new keys: %s", err)
+	}
 
 	return nil
 }
@@ -184,9 +184,7 @@ func (km *KeysManager) Login(password []byte) error {
 		return ErrWrongPassword
 	}
 
-	cipherkey := scryptKey(password, km.sm.Get(saltCipher))
-
-	cipher, err := aes.NewCipher(cipherkey)
+	cipher, err := aes.NewCipher(scryptKey(password, km.sm.Get(saltCipher)))
 	if err != nil {
 		return fmt.Errorf("creating cipher: %s", err)
 	}
@@ -283,21 +281,12 @@ func (km *KeysManager) encryptKey(decryptedKey []byte) (string, error) {
 	return hex.EncodeToString(encryptedKey), nil
 }
 
-func (km *KeysManager) generateNewKeys(password []byte) error {
+func (km *KeysManager) generateNewKeys() error {
 	if _, err := os.Stat(km.keysfile); err == nil {
 		// we don't export that error, although it's static, because nowhere
 		// in the application should that happen
 		return fmt.Errorf("keysfile already exists")
 	}
-
-	cipherkey := scryptKey(password, km.sm.Get(saltCipher))
-
-	cipher, err := aes.NewCipher(cipherkey)
-	if err != nil {
-		return fmt.Errorf("initiating new cipher: %s", err)
-	}
-	// do it in two steps to not erase km.block in case there is an error
-	km.block = cipher
 
 	generateHexKey := func() (string, error) {
 		decryptedKey := make([]byte, km.keysize)
@@ -309,11 +298,11 @@ func (km *KeysManager) generateNewKeys(password []byte) error {
 		return km.encryptKey(decryptedKey)
 	}
 
-	MACKey, err := generateHexKey()
+	encryptionKey, err := generateHexKey()
 	if err != nil {
 		return err
 	}
-	encryptionKey, err := generateHexKey()
+	MACKey, err := generateHexKey()
 	if err != nil {
 		return err
 	}
@@ -350,17 +339,17 @@ func (km *KeysManager) ChangePassword(newpassword []byte) error {
 	// FIXME: how can we make sure here that all the keys are updated?
 	// (ie. for example if we add a field to Keys, how can we write some code
 	// that will generate an error if we have a third field in Keys but only update two here)
-	MACKey, err := km.encryptKey(keys.MAC)
+	encryptionKey, err := km.encryptKey(keys.MAC)
 	if err != nil {
 		return fmt.Errorf("encrypting keys with new password: %s", err)
 	}
-	encryptionKey, err := km.encryptKey(keys.MAC)
+	MACKey, err := km.encryptKey(keys.MAC)
 	if err != nil {
 		return fmt.Errorf("encrypting keys with new password: %s", err)
 	}
 
 	// encrypt the current keys with the new password
-	content := []byte(fmt.Sprintf("%s\n%s\n", MACKey, encryptionKey))
+	content := []byte(fmt.Sprintf("%s\n%s\n", encryptionKey, MACKey))
 	if err := ioutil.WriteFile(km.keysfile, content, 0644); err != nil {
 		return fmt.Errorf("writing keysfile: %s", err)
 	}

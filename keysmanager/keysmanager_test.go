@@ -17,6 +17,7 @@ import (
 func TestKeysManagerBasic(t *testing.T) {
 	t.Parallel()
 	privroot := getTemporaryPath(t, "test-priv-"+t.Name())
+	t.Log(privroot)
 	km := NewKeysManager(privroot)
 	defer func() {
 		if err := km.RemovePrivroot(); err != nil {
@@ -44,8 +45,22 @@ func TestKeysManagerBasic(t *testing.T) {
 		t.Fatalf("loading keys after log in: %s", err)
 	}
 
+	km3 := NewKeysManager(privroot)
+	if err := km3.Login(password); err != nil {
+		t.Fatalf("logging in: %s", err)
+	}
+
+	keys3, err := km3.LoadKeys()
+	if err != nil {
+		t.Fatalf("loading keys after log in: %s", err)
+	}
+
 	if !keys1.Equal(keys2) {
-		t.Fatalf("keys loaded after sign up and after log in are different")
+		t.Errorf("keys loaded after sign up and after log in are different")
+	}
+
+	if !keys2.Equal(keys3) {
+		t.Errorf("keys loaded after two logins differ")
 	}
 }
 
