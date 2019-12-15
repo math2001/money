@@ -56,8 +56,8 @@ var ErrAlreadyLoaded = errors.New("already loaded")
 
 const (
 	saltCipher = iota
-	saltMac
 	saltPassword
+	_nsalts
 )
 
 // KeysManager loads the different keys from a file (keysfile) and decrypts
@@ -101,7 +101,7 @@ func NewKeysManager(privroot string) *KeysManager {
 	km.passwordhashfile = filepath.Join(km.privroot, "passwordhash")
 
 	// CHECKME: the original saltsize was 16 I think... Is that fine?
-	km.sm = NewSaltsManager(2, filepath.Join(km.privroot, "salts"), 32)
+	km.sm = NewSaltsManager(_nsalts, filepath.Join(km.privroot, "salts"), 32)
 	return km
 }
 
