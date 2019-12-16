@@ -54,6 +54,9 @@ var ErrWrongPassword = errors.New("wrong password")
 // once for example
 var ErrAlreadyLoaded = errors.New("already loaded")
 
+// ErrNotLoggedIn is returned when an action requires login in
+var ErrNotLoggedIn = errors.New("please login first")
+
 const (
 	saltCipher = iota
 	saltPassword
@@ -144,8 +147,9 @@ func (km *KeysManager) SignUp(password []byte) error {
 
 // FIXME: how do you transfer keys? Just copy paste the priv/ folder?
 
-// Login creates the block cipher from the password, which will then be used
-// to decrypt the keys from the file
+// Login creates the block cipher from the password, which will then be used to
+// decrypt the keys from the file. It can return ErrAlreadyLoaded (already
+// logged in), ErrPrivCorrupted, ErrWrongPassword or err (internal error)
 func (km *KeysManager) Login(password []byte) error {
 
 	// FIXME: export this to a function IsLoggedIn? How else could we check?
@@ -209,10 +213,15 @@ func (km *KeysManager) RemovePrivroot() error {
 	return os.RemoveAll(km.privroot)
 }
 
-// LoadKeys loads the keys from the keys file
+// LoadKeys loads the keys from the keys file. Errors: ErrPrivCorrupted,
+// ErrNotLoggedIn
 //
 // FIXME: do something so that we ensure that we only load the keys once
 func (km *KeysManager) LoadKeys() (Keys, error) {
+	if km.block == nil {
+		return Keys{}, ErrNotLoggedIn
+	}
+
 	f, err := os.Open(filepath.Join(km.privroot, "keys"))
 	if err != nil {
 		return Keys{}, fmt.Errorf("opening keys file: %s (%w)", err, ErrPrivCorrupted)
@@ -223,17 +232,17 @@ func (km *KeysManager) LoadKeys() (Keys, error) {
 	decryptKey := func(reader *bufio.Reader) ([]byte, error) {
 		line, err := reader.ReadString('\n')
 		if err != nil {
-			return nil, fmt.Errorf("read line from keysfile: %s", err)
+			return nil, fmt.Errorf("read line from keysfile: %s (%w)", err, ErrPrivCorrupted)
 		}
 
 		// remove the line ending \n
 		ciphertext, err := hex.DecodeString(line[:len(line)-1])
 		if err != nil {
-			return nil, fmt.Errorf("decode hex key: %s", err)
+			return nil, fmt.Errorf("decode hex key: %s (%w)", err, ErrPrivCorrupted)
 		}
 
 		if len(ciphertext)%km.block.BlockSize() != 0 {
-			return nil, fmt.Errorf("length should be a multiple of blocksize, got %d", len(ciphertext))
+			return nil, fmt.Errorf("length should be a multiple of blocksize, got %d, (%w)", len(ciphertext), ErrPrivCorrupted)
 		}
 
 		iv := ciphertext[:km.block.BlockSize()]
@@ -245,7 +254,7 @@ func (km *KeysManager) LoadKeys() (Keys, error) {
 		mode.CryptBlocks(keyDecrypted, keyEncrypted)
 
 		if len(keyDecrypted) != km.keysize {
-			return nil, fmt.Errorf("length should be %d, got %d", km.keysize, len(keyDecrypted))
+			return nil, fmt.Errorf("length should be %d, got %d (%w)", km.keysize, len(keyDecrypted), ErrPrivCorrupted)
 		}
 
 		return keyDecrypted, nil
