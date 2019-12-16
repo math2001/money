@@ -164,3 +164,13 @@ func (s *S) Load(r *http.Request) (interface{}, error) {
 	}
 	return obj, nil
 }
+
+// Remove removes the session cookie
+func (s *S) Remove(w http.ResponseWriter) {
+	http.SetCookie(w, &http.Cookie{
+		Name:  s.cookieName,
+		Value: "",
+
+		MaxAge: 0,
+	})
+}
