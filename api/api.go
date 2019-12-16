@@ -2,6 +2,7 @@ package api
 
 import (
 	"encoding/json"
+	"errors"
 	"fmt"
 	"io/ioutil"
 	"log"
@@ -56,6 +57,8 @@ type Session struct {
 	ID    int
 	Email string
 }
+
+var NilSession = Session{}
 
 func NewAPI(dataroot string) (*API, error) {
 	log.Printf("API dataroot: %q", dataroot)
@@ -119,6 +122,7 @@ func (api *API) BindTo(r *mux.Router) {
 
 	post.HandleFunc("/login", api.h(api.loginHandler))
 	post.HandleFunc("/signup", api.h(api.signupHandler))
+	post.HandleFunc("/logout", api.h(api.logoutHandler))
 
 	// make sure this stays at the bottom of the function
 	r.PathPrefix("/").HandlerFunc(api.h(func(r *http.Request) *resp {
@@ -138,6 +142,7 @@ func (api *API) BindTo(r *mux.Router) {
 
 // key value
 type kv map[string]interface{}
+
 type resp struct {
 	code    int
 	msg     kv
@@ -179,6 +184,8 @@ func (api *API) h(h handler) http.HandlerFunc {
 						"msg":  "errored saving session cookie",
 					}
 				}
+			} else if resp.session == &NilSession {
+				api.sessions.Remove(w)
 			}
 		}
 
@@ -187,6 +194,20 @@ func (api *API) h(h handler) http.HandlerFunc {
 			log.Printf("[err] encoding json object in %s: %s", handlerName, err)
 		}
 	}
+}
+
+// getSession gets the session for the given request, and handles any error
+// which require extra behaviour (warning on invalid signature for example)
+// it might recieve (in which case it'll return a nil session).
+func (api *API) GetSession(r *http.Request) (*Session, error) {
+	session := &Session{}
+	err := api.sessions.Load(r, session)
+	if errors.Is(err, sessions.ErrInvalidSignature) {
+		log.Println("!! Warning !! potential attack on cookie signature")
+	} else if err != nil {
+		return nil, err
+	}
+	return session, nil
 }
 
 func getFuncName(i interface{}) string {
