@@ -12,7 +12,8 @@ type loginInfos struct {
 }
 
 func (api *API) loginHandler(r *http.Request) *resp {
-	user, err := api.Login(r.PostFormValue("email"), r.PostFormValue("password"))
+	email := r.PostFormValue("email")
+	user, err := api.Login(email, r.PostFormValue("password"))
 
 	if errors.Is(err, ErrWrongIdentifiers) {
 		return &resp{
@@ -39,8 +40,9 @@ func (api *API) loginHandler(r *http.Request) *resp {
 			Email: user.Email,
 		},
 		msg: kv{
-			"kind": "success",
-			"goto": "/",
+			"kind":  "success",
+			"goto":  "/",
+			"email": email,
 		},
 	}
 }

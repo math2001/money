@@ -48,6 +48,11 @@ export default class SignUp {
       throw new Error("no email field in 'success' response");
     }
 
+    if (obj.goto === undefined) {
+      console.error("response:", obj);
+      throw new Error("no email field in 'goto' response");
+    }
+
     State.useremail = obj.email;
     EM.emit(EM.loggedin);
     EM.emit(EM.browseto, obj["goto"]);

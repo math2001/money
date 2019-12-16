@@ -12,7 +12,7 @@ export default class Home {
   }
 
   setup() {
-    if (localStorage.getItem(State.useremail) !== null) {
+    if (State.useremail !== null) {
       this.forvisitor.style.display = "none";
       this.foruser.style.display = "block";
     } else {

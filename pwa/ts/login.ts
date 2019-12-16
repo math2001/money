@@ -1,4 +1,4 @@
-import { qs } from "./utils.js";
+import { qs, EM, State } from "./utils.js";
 
 export default class Login {
   section: HTMLElement;
@@ -9,6 +9,7 @@ export default class Login {
     this.section = section;
 
     this.form = qs(this.section, "form.login-form") as HTMLFormElement;
+    this.form.addEventListener("submit", this.submitForm.bind(this));
     this.formstatus = qs(this.section, ".form-status");
   }
 
@@ -26,8 +27,25 @@ export default class Login {
       .then(this.postlogin.bind(this));
   }
 
-  postlogin(resp: Response) {
-    console.log(resp);
+  postlogin(obj: any) {
+    if (obj.kind !== "success") {
+      console.error("response:", obj);
+      throw new Error("expected 'success' response");
+    }
+
+    if (obj.email === undefined) {
+      console.error("response:", obj);
+      throw new Error("no email field in 'success' response");
+    }
+
+    if (obj.goto === undefined) {
+      console.error("response:", obj);
+      throw new Error("no email field in 'goto' response");
+    }
+
+    State.useremail = obj.email;
+    EM.emit(EM.loggedin);
+    EM.emit(EM.browseto, obj.goto);
   }
 
   teardown() {}
