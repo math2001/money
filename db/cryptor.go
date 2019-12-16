@@ -147,7 +147,8 @@ func NewCryptor(encryptionKey, macKey []byte) (*Cryptor, error) {
 
 	block, err := aes.NewCipher(encryptionKey)
 	if err != nil {
-		return nil, fmt.Errorf("new cipher: %w", err)
+		// FIXME: tag with internal error
+		return nil, fmt.Errorf("new cipher: %s", err)
 	}
 
 	return &Cryptor{

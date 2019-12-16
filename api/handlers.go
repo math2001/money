@@ -13,6 +13,7 @@ type loginInfos struct {
 
 func (api *API) loginHandler(r *http.Request) *resp {
 	user, err := api.Login(r.PostFormValue("email"), r.PostFormValue("password"))
+
 	if errors.Is(err, ErrWrongIdentifiers) {
 		return &resp{
 			code: http.StatusOK, // FIXME: better error code?
