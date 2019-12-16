@@ -24,6 +24,8 @@ var ErrTag = errors.New("some tag")
 t.Errorf("my specific error %w", ErrTag)
 ```
 
+Never call `r.ParseForm()`, but `r.ParseMultipartForm()`
+
 ## To think about
 
 How should internal errors be handled? How can you design error handling to be
@@ -33,3 +35,5 @@ all the errors I don't know anything about? Should they be tagged then? Should
 it even be legal to pass up an unknown error up the stack without tagging?)
 
 A caller shouldn't wrap an error it doesn't know anything about
+
+

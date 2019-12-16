@@ -17,6 +17,14 @@ export default class Logout {
   }
 
   async handleLogout() {
+    // we need to promise resolve. It's like sleep(0). It allows othe
+    // coroutines to take control. It's needed because otherwise, it is just
+    // sync code, and we return if State.useremail === null, hence the caller
+    // won't have a returned value (not even a promise), and it doesn't work
+    // with the teardown function
+
+    await Promise.resolve();
+
     this.logoutState.innerHTML = "Checking logged state...";
     if (State.useremail == null) {
       // FIXME: better error communication, redirect to error page
@@ -29,7 +37,7 @@ export default class Logout {
 
     // FIXME: handle offline
     const params: { [key: string]: string } = {
-      useremail: State.useremail
+      email: State.useremail
     };
 
     const formData = new FormData();
@@ -56,6 +64,7 @@ export default class Logout {
 
     State.useremail = null;
     EM.emit(EM.loggedout);
+    EM.emit(EM.browseto, obj.goto);
   }
 
   teardown() {
