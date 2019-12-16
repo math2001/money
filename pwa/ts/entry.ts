@@ -23,11 +23,7 @@ class App {
   constructor() {
     this.current = null;
 
-    const main = qs(document, "main") as HTMLElement | null;
-    if (main === null) {
-      throw new Error("no main element");
-    }
-    this.main = main;
+    this.main = qs(document, "main");
 
     this.main.addEventListener("click", this.proxyLinks.bind(this));
 
