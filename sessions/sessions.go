@@ -1,3 +1,11 @@
+// sessions provide a way to store user information on their end (in a cookie)
+// the content of the cookie is signed (but not encrypted), hence it can be
+// assumed that it hasn't been altered
+//
+// cookie session format. Each part is base64 encoded
+// alg.payload.signature
+// it's heavily inspired by JWT, but I was stupid enough to do something
+// *slightly* different
 package sessions
 
 import (
@@ -6,17 +14,13 @@ import (
 	"crypto/sha256"
 	"encoding/base64"
 	"encoding/json"
+	"errors"
 	"fmt"
-	"log"
 	"net/http"
 	"strings"
 )
 
-// sessions provide a way to store user information on their end (in a cookie)
-
-// cookie session format. Each part is base64 encoded
-// alg.payload.signature
-// it's heavily inspired by JWT
+var ErrInvalidSignature = errors.New("session cookie: payload signature didn't match")
 
 // S should be instantiated once, and then used for every
 // request
@@ -117,6 +121,7 @@ func (s *S) Save(w http.ResponseWriter, obj interface{}) error {
 	return nil
 }
 
+// Load returns the current session. Errors: ErrInvalidSignature
 func (s *S) Load(r *http.Request) (interface{}, error) {
 	cookie, err := r.Cookie(s.cookieName)
 	if err == http.ErrNoCookie {
@@ -150,8 +155,7 @@ func (s *S) Load(r *http.Request) (interface{}, error) {
 	h.Write([]byte(fmt.Sprintf("%s.%s.", splits[0], splits[1])))
 
 	if !hmac.Equal(h.Sum(nil), signature) {
-		log.Println("!! Warning !! potential attack on cookie signature")
-		return nil, fmt.Errorf("session cookie: payload signature didn't match")
+		return nil, ErrInvalidSignature
 	}
 
 	obj := make(map[string]interface{})
