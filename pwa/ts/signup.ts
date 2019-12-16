@@ -11,31 +11,24 @@ export default class SignUp {
 
     this.form = qs(this.section, "form.signup-form") as HTMLFormElement;
     this.formstatus = qs(this.section, ".form-status");
+
+    this.form.addEventListener("submit", this.submitForm.bind(this));
   }
 
   setup() {}
 
-  submitForm(e: Event) {
+  async submitForm(e: Event) {
     e.preventDefault();
     this.formstatus.innerHTML = "Sending request...";
 
-    fetch(this.form.action, {
+    const resp = await fetch(this.form.action, {
       method: "post",
       body: new FormData(this.form)
-    })
-      .then((resp: Response) => resp.text())
-      .then((text: string) => {
-        try {
-          return JSON.parse(text);
-        } catch (e) {
-          console.info(text);
-          throw e;
-        }
-      })
-      .then(this.postsignup.bind(this));
-  }
+    });
 
-  postsignup(obj: any) {
+    this.formstatus.innerHTML = "Processing response...";
+    const obj = await resp.json();
+
     if (obj["kind"] !== "success") {
       // FIXME: send minimal error report automatically, and maybe show the
       // user. Don't wanna constantly interupt the users flow
