@@ -143,7 +143,7 @@ func (c *Cryptor) saveWithIV(filename string, plaintext []byte, iv []byte) error
 
 // NewCryptor creates a new cryptor which saves/loads encrypted files using
 // the mackey and the enckey
-func NewCryptor(MACKey, encryptionKey []byte) (*Cryptor, error) {
+func NewCryptor(encryptionKey, macKey []byte) (*Cryptor, error) {
 
 	block, err := aes.NewCipher(encryptionKey)
 	if err != nil {
@@ -152,7 +152,7 @@ func NewCryptor(MACKey, encryptionKey []byte) (*Cryptor, error) {
 
 	return &Cryptor{
 		block: block,
-		mac:   hmac.New(sha256.New, MACKey),
+		mac:   hmac.New(sha256.New, macKey),
 	}, nil
 }
 
