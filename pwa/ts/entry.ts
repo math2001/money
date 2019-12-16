@@ -42,21 +42,21 @@ class App {
       history.pushState({}, "", url);
     });
 
-    EM.on(EM.loggedin, (useremail: string) => {
-      console.log(useremail);
-      State.useremail = useremail;
+    EM.on(EM.loggedin, () => {
+      const useremail = State.useremail; // load of the localstorage once
       for (let node of document.querySelectorAll('[fill-with="useremail"]')) {
-        console.log(node);
         node.textContent = useremail;
       }
-      console.log(State);
-      console.log(State.useremail);
     });
 
     this.home = new Home(this.getSection("home"));
     this.login = new Login(this.getSection("login"));
     this.err404 = new Err404(this.getSection("err404"));
     this.signup = new SignUp(this.getSection("signup"));
+
+    if (State.useremail !== null) {
+      EM.emit(EM.loggedin);
+    }
   }
 
   getSection(name: string): HTMLElement {

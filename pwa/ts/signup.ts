@@ -1,4 +1,4 @@
-import { EM, qs } from "./utils.js";
+import { EM, qs, State } from "./utils.js";
 // this is really similar to the login form... how could we reuse the code?
 
 export default class SignUp {
@@ -48,7 +48,8 @@ export default class SignUp {
       throw new Error("no email field in 'success' response");
     }
 
-    EM.emit(EM.loggedin, obj["email"]);
+    State.useremail = obj.email;
+    EM.emit(EM.loggedin);
     EM.emit(EM.browseto, obj["goto"]);
   }
 

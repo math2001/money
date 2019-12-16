@@ -18,8 +18,28 @@ export class EM {
   }
 }
 
+// state just provides the keys for the local storage (to get compile time
+// checking). For eg. localStorage.setItem(State.useremail, JSON.stringify("<useremail>"))
+// (items stored in the local storage should always be json encoded)
 export class State {
-  static useremail: string | null = null;
+  private static setItem(key: string, value: any) {
+    localStorage.setItem(key, JSON.stringify(value));
+  }
+  private static getItem(key: string): any {
+    const item = localStorage.getItem(key);
+    if (item === null) {
+      return null;
+    }
+    return JSON.parse(item);
+  }
+
+  static get useremail(): string | null {
+    return State.getItem("useremail");
+  }
+
+  static set useremail(value: string | null) {
+    State.setItem("useremail", value);
+  }
 }
 
 export function qs(from: Element | Document, selector: string): HTMLElement {
