@@ -45,6 +45,10 @@ func getHandler(dataroot string, logs io.Writer) http.Handler {
 	html.PathPrefix("/js/").Handler(http.StripPrefix("/js/", http.FileServer(http.Dir("./pwa/js"))))
 
 	html.PathPrefix("/").HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if r.URL.Path != "/" && strings.HasSuffix(r.URL.Path, "/") {
+			http.Redirect(w, r, r.URL.Path[:len(r.URL.Path)-1], http.StatusPermanentRedirect)
+			return
+		}
 		if strings.HasPrefix(r.URL.Path, "/api/") {
 			// FIXME: implement warning system
 			log.Printf("serving %q GET request with html", r.URL.Path)
