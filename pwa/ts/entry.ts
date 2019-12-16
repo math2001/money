@@ -37,7 +37,11 @@ class App {
 
       console.info("browsing to", url);
       this.browseto(url);
-      history.pushState({}, "", url);
+      history.pushState({ url }, "", url);
+    });
+
+    window.addEventListener("popstate", (e: PopStateEvent) => {
+      this.browseto(e.state.url);
     });
 
     EM.on(EM.loggedin, () => {
