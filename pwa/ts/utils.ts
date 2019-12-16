@@ -3,6 +3,7 @@ export class EM {
 
   static browseto = "browseto";
   static loggedin = "loggedin";
+  static loggedout = "loggedout";
   static events: { [key: string]: Function[] } = {};
 
   static on(eventName: string, cb: Function): void {

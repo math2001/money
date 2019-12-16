@@ -3,6 +3,7 @@ import Home from "./home.js";
 import Login from "./login.js";
 import SignUp from "./signup.js";
 import Err404 from "./err404.js";
+import Logout from "./logout.js";
 
 interface Page {
   setup(): void;
@@ -19,6 +20,7 @@ class App {
   login: Page;
   err404: Page;
   signup: Page;
+  logout: Page;
 
   constructor() {
     this.current = null;
@@ -45,10 +47,17 @@ class App {
       }
     });
 
+    EM.on(EM.loggedout, () => {
+      for (let node of document.querySelectorAll('[fill-with="useremail"]')) {
+        node.textContent = "[internal error]";
+      }
+    });
+
     this.home = new Home(this.getSection("home"));
     this.login = new Login(this.getSection("login"));
     this.err404 = new Err404(this.getSection("err404"));
     this.signup = new SignUp(this.getSection("signup"));
+    this.logout = new Logout(this.getSection("logout"));
 
     if (State.useremail !== null) {
       EM.emit(EM.loggedin);
@@ -92,6 +101,8 @@ class App {
       return this.login;
     } else if (pathname === "/signup") {
       return this.signup;
+    } else if (pathname == "/logout") {
+      return this.logout;
     } else {
       return null;
     }
