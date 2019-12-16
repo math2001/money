@@ -122,47 +122,46 @@ func (s *S) Save(w http.ResponseWriter, obj interface{}) error {
 }
 
 // Load returns the current session. Errors: ErrInvalidSignature
-func (s *S) Load(r *http.Request) (interface{}, error) {
+func (s *S) Load(r *http.Request, dst interface{}) error {
 	cookie, err := r.Cookie(s.cookieName)
 	if err == http.ErrNoCookie {
-		return nil, nil
+		return nil
 	}
 	splits := strings.Split(cookie.Value, ".")
 	if len(splits) != 3 {
-		return nil, fmt.Errorf("session cookie: wrong splits")
+		return fmt.Errorf("session cookie: wrong splits")
 	}
 
 	alg, err := base64.StdEncoding.DecodeString(splits[0])
 	if err != nil {
-		return nil, fmt.Errorf("session coookie: reading alg: %s", err)
+		return fmt.Errorf("session coookie: reading alg: %s", err)
 	}
 
 	if string(alg) != s.alg {
-		return nil, fmt.Errorf("session cookie: unknown alg: %q", alg)
+		return fmt.Errorf("session cookie: unknown alg: %q", alg)
 	}
 
 	payload, err := base64.StdEncoding.DecodeString(splits[1])
 	if err != nil {
-		return nil, fmt.Errorf("session cookie: reading payload: %s", err)
+		return fmt.Errorf("session cookie: reading payload: %s", err)
 	}
 
 	signature, err := base64.StdEncoding.DecodeString(splits[2])
 	if err != nil {
-		return nil, fmt.Errorf("session cookie: reading payload: %s", err)
+		return fmt.Errorf("session cookie: reading payload: %s", err)
 	}
 
 	h := hmac.New(sha256.New, s.key)
 	h.Write([]byte(fmt.Sprintf("%s.%s.", splits[0], splits[1])))
 
 	if !hmac.Equal(h.Sum(nil), signature) {
-		return nil, ErrInvalidSignature
+		return ErrInvalidSignature
 	}
 
-	obj := make(map[string]interface{})
-	if err := json.Unmarshal(payload, &obj); err != nil {
-		return nil, fmt.Errorf("session cookie: unmarshaling: %s", err)
+	if err := json.Unmarshal(payload, dst); err != nil {
+		return fmt.Errorf("session cookie: unmarshaling: %s", err)
 	}
-	return obj, nil
+	return nil
 }
 
 // Remove removes the session cookie
