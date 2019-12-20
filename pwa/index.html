@@ -14,6 +14,7 @@
     <section class="foruser">
         <h2>Money</h2>
         <p>Not much to see here <u fill-with="useremail">[internal error]</u></p>
+        <p>You could <a href="/payments/add-manual">manually add a payment</a></p>
         <p><a href="/logout">Logout</a></p>
     </section>
     <section class="forvisitor">
@@ -80,7 +81,7 @@
 
 <section class="page" id="payments-add-manual">
     <h2>Add manual payments</h2>
-    <form action="/api/payments" method="post">
+    <form action="/api/payments/add-manual" method="post">
         <p>
             <input name="field1" value="Name" disabled>
             <input name="value1">

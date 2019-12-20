@@ -14,10 +14,28 @@ export default class AddManual {
   async onsubmit(e: Event) {
     e.preventDefault();
 
+    let formdata = new FormData(this.form);
+    const payment: { [key: string]: any } = {};
+    for (let key of formdata.keys()) {
+      if (key.startsWith("field")) {
+        const strkey = formdata.get(key);
+        if (typeof strkey !== "string") {
+          throw new Error("type of 'field#' input should be string");
+        }
+        if (strkey in payment) {
+          throw new Error("duplicate keys");
+        }
+        payment[strkey] = formdata.get(key.replace("field", "value"));
+      }
+    }
+
+    formdata = new FormData();
+    formdata.append("payment", JSON.stringify(payment));
     const resp = await fetch(this.form.action, {
       method: this.form.method,
-      body: new FormData(this.form)
+      body: formdata
     });
+
     const obj = await resp.json();
     if (obj.kind === undefined) {
       console.error(obj);
