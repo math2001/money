@@ -36,4 +36,12 @@ it even be legal to pass up an unknown error up the stack without tagging?)
 
 A caller shouldn't wrap an error it doesn't know anything about
 
+## Optimisation
 
+This app is absolutely horrible when it comes to perfs. Probably the best thing
+to do is to run it under a profiler to see what's the worse. In the mean time,
+here are some ideas:
+
+`users.list` should be a sorted list of independent JSON objects (not one big
+lists), so that we can stop reading into memory as soon as we found what we
+wanted...

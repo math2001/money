@@ -13,6 +13,7 @@ import (
 	"runtime"
 
 	"github.com/gorilla/mux"
+	"github.com/math2001/money/db"
 	"github.com/math2001/money/keysmanager"
 	"github.com/math2001/money/sessions"
 )
@@ -50,6 +51,9 @@ type API struct {
 	// this salt is used to hash the passwords in the database
 	sm       *keysmanager.SM
 	sessions *sessions.S
+
+	// FIXME: remove users after some time
+	loggedusers map[int]*db.User
 }
 
 // Session is the content of the session cookie
@@ -64,9 +68,10 @@ func NewAPI(dataroot string) (*API, error) {
 	log.Printf("API dataroot: %q", dataroot)
 
 	api := &API{
-		dataroot:  dataroot,
-		userslist: filepath.Join(dataroot, "users.list"),
-		usersdir:  filepath.Join(dataroot, "users"),
+		dataroot:    dataroot,
+		userslist:   filepath.Join(dataroot, "users.list"),
+		usersdir:    filepath.Join(dataroot, "users"),
+		loggedusers: make(map[int]*db.User),
 	}
 
 	saltfile := filepath.Join(dataroot, "appsalts")

@@ -18,6 +18,8 @@ var ErrEmailAlreadyUsed = errors.New("email already used")
 
 var ErrWrongIdentifiers = errors.New("wrong identifiers")
 
+var ErrNoCurrentUser = errors.New("no current user")
+
 type user struct {
 	Email    string
 	Password []byte
@@ -86,9 +88,13 @@ func (api *API) SignUp(email, password string) (*db.User, error) {
 	if err := u.SignUp([]byte(password)); err != nil {
 		return nil, fmt.Errorf("signing up db.User: %s", err)
 	}
+
+	api.loggedusers[u.ID] = u
+
 	return u, nil
 }
 
+// Login adds the user to loggedusers
 func (api *API) Login(email, password string) (*db.User, error) {
 
 	// FIXME: that's a lot of duplicate logic from sign up...
@@ -98,6 +104,7 @@ func (api *API) Login(email, password string) (*db.User, error) {
 		// TODO: could send an email to email (apologise)
 		return nil, fmt.Errorf("signing up, opening users list %q: %s", api.userslist, err)
 	}
+	defer f.Close()
 	decoder := json.NewDecoder(f)
 
 	// FIXME: this is extrememly inefficient. It reads all the user data into
@@ -125,5 +132,37 @@ func (api *API) Login(email, password string) (*db.User, error) {
 
 	u := db.NewUser(match.ID, match.Email, filepath.Join(api.usersdir, strconv.Itoa(match.ID)))
 	u.Login([]byte(password))
+
+	api.loggedusers[u.ID] = u
+
 	return u, nil
+}
+
+// Logout may return ErrNoCurrentUser
+func (api *API) Logout(id int, email string) error {
+	u := api.getCurrentUser(id, email)
+	if u == nil {
+		return ErrNoCurrentUser
+	}
+	delete(api.loggedusers, id)
+	return nil
+}
+
+// FIXME: this will do some more validation later on (the user hasn't expired)
+func (api *API) getCurrentUser(id int, email string) *db.User {
+	u, ok := api.loggedusers[id]
+	if !ok {
+		return nil
+	}
+	if u.ID != id {
+		log.Printf("!! warning !! loggedusers is broken: actual id: %d, key: %d", u.ID, id)
+		// this is a major issue, hence require logging in
+		delete(api.loggedusers, id)
+		return nil
+	}
+	if u.Email != email {
+		log.Printf("!! warning !! current user %d %q doesn't have expected email %q", u.ID, u.Email, email)
+	}
+
+	return u
 }

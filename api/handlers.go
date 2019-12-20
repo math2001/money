@@ -1,6 +1,7 @@
 package api
 
 import (
+	"encoding/json"
 	"errors"
 	"log"
 	"net/http"
@@ -153,6 +154,26 @@ func (api *API) logoutHandler(r *http.Request) *resp {
 		// FIXME: should we let the user know about this?
 	}
 
+	err = api.Logout(session.ID, session.Email)
+	if errors.Is(err, ErrNoCurrentUser) {
+		return &resp{
+			code: http.StatusExpectationFailed,
+			msg: kv{
+				"kind": "error",
+				"msg":  "no user is currently logged in",
+			},
+		}
+	} else if err != nil {
+		log.Printf("logout handler: api.Logout: %s", err)
+		return &resp{
+			code: http.StatusInternalServerError,
+			msg: kv{
+				"kind": "internal error",
+				"msg":  "logging user out",
+			},
+		}
+	}
+
 	return &resp{
 		code: http.StatusOK,
 		msg: kv{
@@ -160,5 +181,56 @@ func (api *API) logoutHandler(r *http.Request) *resp {
 			"goto": "/",
 		},
 		session: &NilSession, // remove the session cookie
+	}
+}
+
+func (api *API) addPaymentsHandler(r *http.Request) *resp {
+	session, err := api.GetSession(r)
+	if err != nil {
+		log.Printf("[err] loading session: %s", err)
+		return &resp{
+			code: http.StatusNotAcceptable,
+			msg: kv{
+				"kind": "not acceptable",
+				"msg":  "couldn't load session from cookie",
+			},
+		}
+	}
+
+	var payment Payment
+	content := []byte(r.PostFormValue("payment"))
+	if err := json.Unmarshal(content, &payment); err != nil {
+		log.Printf("")
+		return &resp{
+			code: http.StatusNotAcceptable,
+			msg: kv{
+				"kind": "not acceptable",
+				"msg":  "invalid internal payment format",
+			},
+		}
+	}
+
+	u := api.getCurrentUser(session.ID, session.Email)
+	if u == nil {
+		log.Printf("add payments: no current user")
+		return &resp{
+			code: http.StatusNotAcceptable,
+			msg: kv{
+				"kind": "require log in",
+				"msg":  "please authenticate first",
+			},
+		}
+	}
+
+	err = api.AddPayment(u, payment)
+	if err != nil {
+		log.Printf("add payments: api.addpayment: %s", err)
+	}
+	return &resp{
+		code: http.StatusOK,
+		msg: kv{
+			"kind": "success",
+			"goto": "/", // FIXME: where should it go
+		},
 	}
 }
