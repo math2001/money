@@ -52,17 +52,20 @@ export default class Logout {
 
     const obj = await resp.json();
     // FIXME: better error communication
-    if (obj.kind !== "success") {
+    if (obj.kind === "error" && obj.id === "no user") {
+      console.info("no user is currently logged in");
+    } else if (obj.kind !== "success") {
       console.error(obj);
       throw new Error("expected kind 'success'");
     }
+
+    State.useremail = null;
 
     if (obj.goto === undefined) {
       console.error(obj);
       throw new Error("expected 'goto' key");
     }
 
-    State.useremail = null;
     EM.emit(EM.loggedout);
     EM.emit(EM.browseto, obj.goto);
   }
