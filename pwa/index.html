@@ -22,12 +22,14 @@
     </section>
 </section>
 
+<!-- User pages -->
+
 <section class="page" id="login">
     <h2>Login</h2>
     <form action="/api/login" class="login-form" method="post">
         <p>
             <label for="email">Email</label>:
-            <input type="text" name="email" placeholder="youremail@example.com">
+            <input type="text" name="email" placeholder="youremail@example.com" value="math2001@example.net">
         </p>
         <p>
             <label for="password">Password</label>:
@@ -72,6 +74,24 @@
     <h2>Log out</h2>
     <p>We are logging you out <u fill-with="useremail">[internal error]</u></p>
     <p class="logout-state">[Internal error]</p>
+</section>
+
+<!-- Payments pages -->
+
+<section class="page" id="payments-add-manual">
+    <h2>Add manual payments</h2>
+    <form action="/api/payments" method="post">
+        <p>
+            <input name="field1" value="Name" disabled>
+            <input name="value1">
+        </p>
+        <p>
+            <input name="field2" value="Amount" disabled>
+            <input name="value2" type="number" step="any">
+        </p>
+        <button id="add-field" type="button">Add field</button>
+        <button>Submit</button>
+    </form>
 </section>
 
 <section class="page" id="err404">

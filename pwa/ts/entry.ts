@@ -4,6 +4,7 @@ import Login from "./login.js";
 import SignUp from "./signup.js";
 import Err404 from "./err404.js";
 import Logout from "./logout.js";
+import payments from "./payments/index.js";
 
 interface Page {
   setup(): void;
@@ -21,6 +22,9 @@ class App {
   err404: Page;
   signup: Page;
   logout: Page;
+  payments: {
+    [key: string]: Page;
+  };
 
   constructor() {
     this.current = null;
@@ -62,6 +66,10 @@ class App {
     this.err404 = new Err404(this.getSection("err404"));
     this.signup = new SignUp(this.getSection("signup"));
     this.logout = new Logout(this.getSection("logout"));
+
+    this.payments = {
+      addManual: new payments.addManual(this.getSection("payments-add-manual"))
+    };
 
     if (State.useremail !== null) {
       EM.emit(EM.loggedin);
@@ -107,6 +115,8 @@ class App {
       return this.signup;
     } else if (pathname == "/logout") {
       return this.logout;
+    } else if (pathname == "/payments/add-manual") {
+      return this.payments.addManual;
     } else {
       return null;
     }
