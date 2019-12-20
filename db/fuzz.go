@@ -5,6 +5,7 @@ package db
 import (
 	"bytes"
 	"encoding/binary"
+	"fmt"
 	"path"
 	"strings"
 
@@ -29,11 +30,8 @@ func Fuzz(data []byte) int {
 	final := JoinRootPath(root, unsafePath)
 	final = path.Clean(final)
 
-	if !strings.HasPrefix(final, root) {
-		panic("invalid prefix")
-	}
-	if !strings.Contains(final, "/../") {
-		panic("path not safe")
+	if strings.Contains(final, "/../") || strings.HasSuffix(final, "/..") {
+		panic(fmt.Sprintf("path not safe %q %q in %q", root, unsafePath, final))
 	}
 
 	return 1

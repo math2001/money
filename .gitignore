@@ -8,3 +8,5 @@ money-tools
 *.map
 *.tsbuildinfo
 data/
+fuzzworkdir/
+db-fuzz.zip
