@@ -226,12 +226,22 @@ func (api *API) addManualPaymentHandler(r *http.Request) *resp {
 	}
 
 	err = api.AddPayment(u, payment)
+	if _, ok := err.(ErrInvalidPayment); ok {
+		return &resp{
+			code: http.StatusOK,
+			msg: kv{
+				"kind": "error",
+				"id":   "invalid payment",
+				"msg":  err.Error(),
+			},
+		}
+	}
 	if err != nil {
 		log.Printf("add payments: api.addpayment: %s", err)
 		return &resp{
 			code: http.StatusInternalServerError,
 			msg: kv{
-				"kind": "error",
+				"kind": "internal error",
 				"msg":  "adding payment failed",
 			},
 		}
