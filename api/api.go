@@ -39,7 +39,7 @@ const (
 type API struct {
 	dataroot  string
 	userslist string
-	usersdir  string
+	Usersdir  string
 	// this salt is used to hash the passwords in the database
 	sm *keysmanager.SM
 }
@@ -50,7 +50,7 @@ func NewAPI(dataroot string) *API {
 	api := &API{
 		dataroot:  dataroot,
 		userslist: filepath.Join(dataroot, "users.list"),
-		usersdir:  filepath.Join(dataroot, "users"),
+		Usersdir:  filepath.Join(dataroot, "users"),
 	}
 
 	saltfile := filepath.Join(dataroot, "apisalts")
@@ -62,8 +62,8 @@ func NewAPI(dataroot string) *API {
 // Initialize creates all the required file (should only be run if they don't
 // already exist)
 func (api *API) Initialize() error {
-	if err := os.Mkdir(api.usersdir, 0700); err != nil {
-		return fmt.Errorf("mkdir %q: %s", api.usersdir, err)
+	if err := os.Mkdir(api.Usersdir, 0700); err != nil {
+		return fmt.Errorf("mkdir %q: %s", api.Usersdir, err)
 	}
 	if err := api.sm.GenerateNew(); err != nil {
 		return fmt.Errorf("generating new salts: %s", err)

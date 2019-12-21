@@ -22,6 +22,8 @@ import (
 
 var ErrInvalidSignature = errors.New("session cookie: payload signature didn't match")
 
+var ErrNoSession = errors.New("no session cookie")
+
 // S should be instantiated once, and then used for every
 // request
 type S struct {
@@ -121,11 +123,11 @@ func (s *S) Save(w http.ResponseWriter, obj interface{}) error {
 	return nil
 }
 
-// Load returns the current session. Errors: ErrInvalidSignature
+// Load returns the current session. Errors: ErrInvalidSignature, ErrNoSession
 func (s *S) Load(r *http.Request, dst interface{}) error {
 	cookie, err := r.Cookie(s.cookieName)
 	if err == http.ErrNoCookie {
-		return nil
+		return ErrNoSession
 	}
 	splits := strings.Split(cookie.Value, ".")
 	if len(splits) != 3 {

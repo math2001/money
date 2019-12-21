@@ -10,21 +10,32 @@ import (
 	"path/filepath"
 	"reflect"
 	"runtime"
+	"strconv"
 	"strings"
 
 	"github.com/gorilla/mux"
 	"github.com/math2001/money/api"
+	"github.com/math2001/money/db"
 	"github.com/math2001/money/keysmanager"
 	"github.com/math2001/money/sessions"
 )
 
 // Session is the content of the session cookie
 type Session struct {
-	ID    int
-	Email string
+	ID       int
+	Email    string
+	Password secret
+}
+
+type secret []byte
+
+func (secret) String() string {
+	return "[secret]"
 }
 
 var NilSession = Session{}
+
+var ErrNoCurrentUser = errors.New("no current user")
 
 // key value
 type kv map[string]interface{}
@@ -39,7 +50,7 @@ type resp struct {
 type Server struct {
 	sessions *sessions.S
 	api      *api.API
-	km       *keysmanager.KeysManager
+	cryptor  *db.Cryptor
 }
 
 func New(dataroot string, password []byte) (*mux.Router, error) {
@@ -80,9 +91,15 @@ func New(dataroot string, password []byte) (*mux.Router, error) {
 		return nil, fmt.Errorf("loading app keys: %s", err)
 	}
 
+	cryptor, err := db.NewCryptor(keys.Encryption, keys.MAC)
+	if err != nil {
+		return nil, fmt.Errorf("creating cryptor: %s", err)
+	}
+
 	sessions, err := sessions.NewS(&sessions.Config{
 		// FIXME: keysmanager should be generic (here we are using keys.MAC,
 		// but we just need a secure key)
+		// SECURITY ISSUE (re use of keys)
 		Key: keys.MAC,
 	})
 	if err != nil {
@@ -92,7 +109,7 @@ func New(dataroot string, password []byte) (*mux.Router, error) {
 	s := &Server{
 		sessions: sessions,
 		api:      api,
-		km:       km,
+		cryptor:  cryptor,
 	}
 
 	rapi := r.PathPrefix("/api").Subrouter()
@@ -205,18 +222,37 @@ func (s *Server) h(h func(*http.Request) *resp) http.HandlerFunc {
 	}
 }
 
-// getSession gets the session for the given request, and handles any error
-// which require extra behaviour (warning on invalid signature for example)
-// it might recieve (in which case it'll return a nil session).
-func (s *Server) getSession(r *http.Request) (*Session, error) {
+func (s *Server) getCurrentUser(r *http.Request) (*db.User, error) {
 	session := &Session{}
 	err := s.sessions.Load(r, session)
 	if errors.Is(err, sessions.ErrInvalidSignature) {
 		log.Println("!! Warning !! potential attack on cookie signature")
+		return nil, err
+	} else if errors.Is(err, sessions.ErrNoSession) {
+		return nil, ErrNoCurrentUser
 	} else if err != nil {
 		return nil, err
 	}
-	return session, nil
+
+	if session.ID == 0 || session.Email == "" || len(session.Password) == 0 {
+		log.Println("!! warning !! internal error or potential attack on session")
+		log.Println("!! warning !! current session:", session)
+		return nil, errors.New("missing fields from session")
+	}
+
+	// breaking abstraction here, but I don't know what's better...
+	// FIXME: this clearly isn't the right way
+	user := db.NewUser(session.ID, session.Email, filepath.Join(s.api.Usersdir, strconv.Itoa(session.ID)))
+
+	password, err := s.cryptor.Decrypt(session.Password)
+	if err != nil {
+		log.Printf("!! Warning !! decrypting password from session")
+		return nil, err
+	}
+
+	user.Login(password)
+
+	return user, nil
 }
 
 func getFuncName(i interface{}) string {

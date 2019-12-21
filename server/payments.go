@@ -9,8 +9,18 @@ import (
 )
 
 func (s *Server) addManualPayment(r *http.Request) *resp {
-	session, err := s.getSession(r)
-	if err != nil {
+	user, err := s.getCurrentUser(r)
+	if errors.Is(err, ErrNoCurrentUser) {
+		log.Printf("add payments: no current user")
+		return &resp{
+			code: http.StatusNotAcceptable,
+			msg: kv{
+				"kind":    "require log in",
+				"msg":     "please authenticate first",
+				"details": "authentication cookie found, but user forgotten",
+			},
+		}
+	} else if err != nil {
 		log.Printf("[err] loading session: %s", err)
 		return &resp{
 			code: http.StatusNotAcceptable,
@@ -21,19 +31,9 @@ func (s *Server) addManualPayment(r *http.Request) *resp {
 		}
 	}
 
-	err = s.api.AddPayment(session.ID, session.Email, []byte(r.PostFormValue("payment")))
+	err = s.api.AddPayment(user, []byte(r.PostFormValue("payment")))
 
-	if errors.Is(err, api.ErrNoCurrentUser) {
-		log.Printf("add payments: no current user")
-		return &resp{
-			code: http.StatusNotAcceptable,
-			msg: kv{
-				"kind":    "require log in",
-				"msg":     "please authenticate first",
-				"details": "authentication cookie found, but user forgotten",
-			},
-		}
-	} else if _, ok := err.(api.ErrInvalidPayment); ok {
+	if _, ok := err.(api.ErrInvalidPayment); ok {
 		log.Printf("invalid payment: %s", err)
 		return &resp{
 			code: http.StatusNotAcceptable,

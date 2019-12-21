@@ -4,6 +4,7 @@ import (
 	"crypto/hmac"
 	"crypto/sha256"
 	"encoding/base64"
+	"errors"
 	"fmt"
 	"io"
 	"math/rand"
@@ -24,8 +25,8 @@ func TestNoSession(t *testing.T) {
 	req := httptest.NewRequest(http.MethodGet, "/api/sample", nil)
 	var obj interface{}
 	err := s.Load(req, &obj)
-	if err != nil {
-		t.Fatalf("loading from empty request: %s", err)
+	if !errors.Is(err, sessions.ErrNoSession) {
+		t.Fatalf("no cookie, got %q should have ErrNoSession", err)
 	}
 	if obj != nil {
 		t.Fatalf("loading from empty request, got non-nil obj: %s", obj)

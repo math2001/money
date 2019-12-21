@@ -18,8 +18,6 @@ var ErrEmailAlreadyUsed = errors.New("email already used")
 
 var ErrWrongIdentifiers = errors.New("wrong identifiers")
 
-var ErrNoCurrentUser = errors.New("no current user")
-
 type user struct {
 	Email    string
 	Password []byte
@@ -84,7 +82,7 @@ func (api *API) SignUp(email, password string) (*db.User, error) {
 		return nil, fmt.Errorf("signing up, saving user to database: %s", err)
 	}
 
-	u := db.NewUser(userid, email, filepath.Join(api.usersdir, strconv.Itoa(userid)))
+	u := db.NewUser(userid, email, filepath.Join(api.Usersdir, strconv.Itoa(userid)))
 	if err := u.SignUp([]byte(password)); err != nil {
 		return nil, fmt.Errorf("signing up db.User: %s", err)
 	}
@@ -128,7 +126,7 @@ func (api *API) Login(email, password string) (*db.User, error) {
 		return nil, ErrWrongIdentifiers
 	}
 
-	u := db.NewUser(match.ID, match.Email, filepath.Join(api.usersdir, strconv.Itoa(match.ID)))
+	u := db.NewUser(match.ID, match.Email, filepath.Join(api.Usersdir, strconv.Itoa(match.ID)))
 	if err := u.Login([]byte(password)); err != nil {
 		return nil, fmt.Errorf("logging in: %s", err)
 	}
@@ -140,31 +138,6 @@ func (api *API) Login(email, password string) (*db.User, error) {
 
 // Logout has nothing to do to log out someone from the api's point of view
 // so we just at least check that the current user is valid
-func (api *API) Logout(id int, email string) error {
-	_, err := api.getCurrentUser(id, email)
-	if err != nil {
-		return err
-	}
+func (api *API) Logout(user *db.User) error {
 	return nil
-}
-
-// getCurrentUser returns the current user. error can be ErrNoCurrentUser,
-// ErrInvalidUser
-func (api *API) getCurrentUser(id int, email string) (*db.User, error) {
-	panic("api.getCurrentUser not implemented")
-	// u, ok := api.loggedusers[id]
-	// if !ok {
-	// 	return nil
-	// }
-	// if u.ID != id {
-	// 	log.Printf("!! warning !! loggedusers is broken: actual id: %d, key: %d", u.ID, id)
-	// 	// this is a major issue, hence require logging in
-	// 	delete(api.loggedusers, id)
-	// 	return nil
-	// }
-	// if u.Email != email {
-	// 	log.Printf("!! warning !! current user %d %q doesn't have expected email %q", u.ID, u.Email, email)
-	// }
-
-	// return u
 }

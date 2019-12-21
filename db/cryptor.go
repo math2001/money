@@ -45,15 +45,7 @@ type Cryptor struct {
 	mac   hash.Hash
 }
 
-// Load opens <filename>, decrypts its content, and returns it
-func (c *Cryptor) Load(filename string) ([]byte, error) {
-	content, err := ioutil.ReadFile(filename)
-	if err != nil {
-		// wrap the error to allow the user to determine whether the file
-		// existed or if it was an other kind of error
-		return nil, fmt.Errorf("reading file: %w", err)
-	}
-
+func (c *Cryptor) Decrypt(content []byte) ([]byte, error) {
 	givenMACSum := content[:c.mac.Size()]
 	ciphertext := content[c.mac.Size():]
 
@@ -102,16 +94,23 @@ func (c *Cryptor) Load(filename string) ([]byte, error) {
 	return plaintext[:len(plaintext)-npadding], nil
 }
 
-// Save encrypts plaintext and saves it to filename
-func (c *Cryptor) Save(filename string, plaintext []byte) error {
-	iv, err := generateiv(c.block.BlockSize())
+// Load opens <filename>, decrypts its content, and returns it
+func (c *Cryptor) Load(filename string) ([]byte, error) {
+	content, err := ioutil.ReadFile(filename)
 	if err != nil {
-		return err
+		// wrap the error to allow the user to determine whether the file
+		// existed or if it was an other kind of error
+		return nil, fmt.Errorf("reading file: %w", err)
 	}
-	return c.saveWithIV(filename, plaintext, iv)
+	return c.Decrypt(content)
 }
 
-func (c *Cryptor) saveWithIV(filename string, plaintext []byte, iv []byte) error {
+func (c *Cryptor) Encrypt(plaintext []byte) ([]byte, error) {
+	iv := make([]byte, c.block.BlockSize())
+	if _, err := io.ReadFull(rand.Reader, iv); err != nil {
+		return nil, fmt.Errorf("generating IV: %s", err)
+	}
+
 	blocksize := c.block.BlockSize()
 
 	// the number of padding bytes required
@@ -136,10 +135,18 @@ func (c *Cryptor) saveWithIV(filename string, plaintext []byte, iv []byte) error
 
 	signature := c.mac.Sum(nil)
 
-	if err := ioutil.WriteFile(filename, append(signature, ciphertext...), 0644); err != nil {
+	return append(signature, ciphertext...), nil
+}
+
+// Save encrypts plaintext and saves it to filename
+func (c *Cryptor) Save(filename string, plaintext []byte) error {
+	ciphertext, err := c.Encrypt(plaintext)
+	if err != nil {
+		return err
+	}
+	if err := ioutil.WriteFile(filename, ciphertext, 0644); err != nil {
 		return fmt.Errorf("writing file: %s", err)
 	}
-
 	return nil
 }
 
@@ -157,12 +164,4 @@ func NewCryptor(encryptionKey, macKey []byte) (*Cryptor, error) {
 		block: block,
 		mac:   hmac.New(sha256.New, macKey),
 	}, nil
-}
-
-func generateiv(size int) ([]byte, error) {
-	iv := make([]byte, size)
-	if _, err := io.ReadFull(rand.Reader, iv); err != nil {
-		return nil, fmt.Errorf("generating IV: %s", err)
-	}
-	return iv, nil
 }

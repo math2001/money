@@ -13,7 +13,10 @@ export default class Logout {
   }
 
   setup() {
-    this.task = this.handleLogout();
+    this.task = this.handleLogout().catch((err: Error) => {
+      console.error(err);
+      this.logoutState.innerHTML = "Error occured: " + err + " (check console)";
+    });
   }
 
   async handleLogout() {
@@ -51,6 +54,11 @@ export default class Logout {
     });
 
     const obj = await resp.json();
+
+    // remove user info as soon as possible. If the user is trying to manually
+    // logout, then it's probably because he's already getting errors
+    State.useremail = null;
+
     // FIXME: better error communication
     if (obj.kind === "error" && obj.id === "no user") {
       console.info("no user is currently logged in");
@@ -58,8 +66,6 @@ export default class Logout {
       console.error(obj);
       throw new Error("expected kind 'success'");
     }
-
-    State.useremail = null;
 
     if (obj.goto === undefined) {
       console.error(obj);

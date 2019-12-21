@@ -10,7 +10,8 @@ import (
 
 func (s *Server) login(r *http.Request) *resp {
 	email := r.PostFormValue("email")
-	user, err := s.api.Login(email, r.PostFormValue("password"))
+	password := r.PostFormValue("password")
+	user, err := s.api.Login(email, password)
 
 	if errors.Is(err, api.ErrWrongIdentifiers) {
 		return &resp{
@@ -30,11 +31,23 @@ func (s *Server) login(r *http.Request) *resp {
 		}
 	}
 
+	encryptedPassword, err := s.cryptor.Encrypt([]byte(password))
+	if err != nil {
+		log.Printf("[err] encrypting password: %s", err)
+		return &resp{
+			code: http.StatusInternalServerError,
+			msg: kv{
+				"kind": "internal error",
+			},
+		}
+	}
+
 	return &resp{
 		code: http.StatusOK,
 		session: &Session{
-			ID:    user.ID,
-			Email: user.Email,
+			ID:       user.ID,
+			Email:    user.Email,
+			Password: encryptedPassword,
 		},
 		msg: kv{
 			"kind":  "success",
@@ -93,11 +106,23 @@ func (s *Server) signup(r *http.Request) *resp {
 	// FIXME: check session for where the user is coming from, and redirect him
 	// there (don't forget to remove that session item)
 
+	encryptedPassword, err := s.cryptor.Encrypt([]byte(password))
+	if err != nil {
+		log.Printf("[err] encrypting password: %s", err)
+		return &resp{
+			code: http.StatusInternalServerError,
+			msg: kv{
+				"kind": "internal error",
+			},
+		}
+	}
+
 	return &resp{
 		code: http.StatusOK,
 		session: &Session{
-			ID:    user.ID,
-			Email: user.Email,
+			ID:       user.ID,
+			Email:    user.Email,
+			Password: encryptedPassword,
 		},
 		msg: kv{
 			"kind":  "success",
@@ -107,6 +132,7 @@ func (s *Server) signup(r *http.Request) *resp {
 	}
 }
 
+// logout always deletes the session, regardless of the error the it encouters
 func (s *Server) logout(r *http.Request) *resp {
 	r.ParseMultipartForm(1024) // 1 KB
 
@@ -126,10 +152,17 @@ func (s *Server) logout(r *http.Request) *resp {
 	// and correct) will just be logged out of both things. But we know that
 	// there was a problem somewhere...
 
-	// remember that sessionEmail can be trusted because it's payload is signed
-
-	session, err := s.getSession(r)
-	if err != nil {
+	user, err := s.getCurrentUser(r)
+	if errors.Is(err, ErrNoCurrentUser) {
+		return &resp{
+			code: http.StatusNotAcceptable,
+			msg: kv{
+				"kind": "not acceptable",
+				"msg":  "no user is logged in",
+			},
+			session: &NilSession,
+		}
+	} else if err != nil {
 		log.Printf("[err] loading session: %s", err)
 		return &resp{
 			code: http.StatusNotAcceptable,
@@ -137,28 +170,19 @@ func (s *Server) logout(r *http.Request) *resp {
 				"kind": "not acceptable",
 				"msg":  "couldn't load session from cookie",
 			},
+			session: &NilSession,
 		}
 	}
 
 	pwaEmail := r.PostFormValue("email")
-	if pwaEmail != session.Email {
+	if pwaEmail != user.Email {
 		log.Printf("!! warning !! the pwa's email doesn't match the session's email")
-		log.Printf("\npwa email: %q\nsession email: %q", pwaEmail, session.Email)
+		log.Printf("\npwa email: %q\nsession email: %q", pwaEmail, user.Email)
 		// FIXME: should we let the user know about this?
 	}
 
-	err = s.api.Logout(session.ID, session.Email)
-	if errors.Is(err, api.ErrNoCurrentUser) {
-		return &resp{
-			code: http.StatusExpectationFailed,
-			msg: kv{
-				"kind": "error",
-				"id":   "no user",
-				"msg":  "no user is currently logged in",
-			},
-			session: &NilSession, // remove the session cookie
-		}
-	} else if err != nil {
+	err = s.api.Logout(user)
+	if err != nil {
 		log.Printf("logout handler: api.Logout: %s", err)
 		return &resp{
 			code: http.StatusInternalServerError,
@@ -166,6 +190,7 @@ func (s *Server) logout(r *http.Request) *resp {
 				"kind": "internal error",
 				"msg":  "logging user out",
 			},
+			session: &NilSession,
 		}
 	}
 
