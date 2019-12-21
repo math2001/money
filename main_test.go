@@ -2,11 +2,14 @@ package main
 
 import (
 	"io/ioutil"
+	"log"
 	"net/http"
 	"net/http/httptest"
 	"os"
 	"strings"
 	"testing"
+
+	"github.com/math2001/money/server"
 )
 
 // makes sure that the legal request do work
@@ -29,7 +32,8 @@ func TestLegalMethods(t *testing.T) {
 
 	var logs strings.Builder
 	logs.WriteString("Logs:\n")
-	handler := getHandler(dataroot, &logs)
+	log.SetOutput(&logs)
+	handler, err := server.New(dataroot, []byte(""))
 
 	type headers map[string]string
 	type resp struct {
@@ -41,13 +45,17 @@ func TestLegalMethods(t *testing.T) {
 			code:    http.StatusOK,
 			headers: headers{"Content-Type": "text/html; charset=utf-8"},
 		},
+		httptest.NewRequest("GET", "/css/main.css", nil): resp{
+			code:    http.StatusOK,
+			headers: headers{"Content-Type": "text/css; charset=utf-8"},
+		},
 		httptest.NewRequest("GET", "/random", nil): resp{
 			code:    http.StatusOK,
 			headers: headers{"Content-Type": "text/html; charset=utf-8"},
 		},
 		httptest.NewRequest("GET", "/randomtrailing/", nil): resp{
-			code:    http.StatusOK,
-			headers: headers{"Content-Type": "text/html; charset=utf-8"},
+			code:    http.StatusPermanentRedirect,
+			headers: headers{"Content-Type": "text/html; charset=utf-8", "Location": "/randomtrailing"},
 		},
 		httptest.NewRequest("GET", "/random/nested", nil): resp{
 			code:    http.StatusOK,
@@ -74,6 +82,12 @@ func TestLegalMethods(t *testing.T) {
 		handler.ServeHTTP(recorder, req)
 		resp := recorder.Result()
 		if expected.code != 0 && resp.StatusCode != expected.code {
+			body, err := ioutil.ReadAll(resp.Body)
+			if err != nil {
+				t.Errorf("reading response body: %s", err)
+			} else {
+				t.Logf("%q", body)
+			}
 			t.Errorf("%q: status code: got %d expected %d", req.URL.Path, resp.StatusCode, expected.code)
 		}
 		for name, expectedValue := range expected.headers {

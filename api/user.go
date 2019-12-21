@@ -89,8 +89,6 @@ func (api *API) SignUp(email, password string) (*db.User, error) {
 		return nil, fmt.Errorf("signing up db.User: %s", err)
 	}
 
-	api.loggedusers[u.ID] = u
-
 	return u, nil
 }
 
@@ -137,36 +135,36 @@ func (api *API) Login(email, password string) (*db.User, error) {
 
 	log.Printf("user is now logged in: %v", u)
 
-	api.loggedusers[u.ID] = u
-
 	return u, nil
 }
 
-// Logout may return ErrNoCurrentUser
+// Logout has nothing to do to log out someone from the api's point of view
+// so we just at least check that the current user is valid
 func (api *API) Logout(id int, email string) error {
-	u := api.getCurrentUser(id, email)
-	if u == nil {
-		return ErrNoCurrentUser
+	_, err := api.getCurrentUser(id, email)
+	if err != nil {
+		return err
 	}
-	delete(api.loggedusers, id)
 	return nil
 }
 
-// FIXME: this will do some more validation later on (the user hasn't expired)
-func (api *API) getCurrentUser(id int, email string) *db.User {
-	u, ok := api.loggedusers[id]
-	if !ok {
-		return nil
-	}
-	if u.ID != id {
-		log.Printf("!! warning !! loggedusers is broken: actual id: %d, key: %d", u.ID, id)
-		// this is a major issue, hence require logging in
-		delete(api.loggedusers, id)
-		return nil
-	}
-	if u.Email != email {
-		log.Printf("!! warning !! current user %d %q doesn't have expected email %q", u.ID, u.Email, email)
-	}
+// getCurrentUser returns the current user. error can be ErrNoCurrentUser,
+// ErrInvalidUser
+func (api *API) getCurrentUser(id int, email string) (*db.User, error) {
+	panic("api.getCurrentUser not implemented")
+	// u, ok := api.loggedusers[id]
+	// if !ok {
+	// 	return nil
+	// }
+	// if u.ID != id {
+	// 	log.Printf("!! warning !! loggedusers is broken: actual id: %d, key: %d", u.ID, id)
+	// 	// this is a major issue, hence require logging in
+	// 	delete(api.loggedusers, id)
+	// 	return nil
+	// }
+	// if u.Email != email {
+	// 	log.Printf("!! warning !! current user %d %q doesn't have expected email %q", u.ID, u.Email, email)
+	// }
 
-	return u
+	// return u
 }

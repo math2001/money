@@ -5,17 +5,23 @@ import (
 	"errors"
 	"fmt"
 	"os"
-
-	"github.com/math2001/money/db"
 )
-
-type Payment map[string]interface{}
 
 type ErrInvalidPayment error
 
-func (api *API) AddPayment(u *db.User, p map[string]interface{}) error {
+type Payment map[string]interface{}
 
-	payment := Payment(p)
+func (api *API) AddPayment(id int, email string, serializedpayment []byte) error {
+
+	u, err := api.getCurrentUser(id, email)
+	if err != nil {
+		return err
+	}
+
+	var payment Payment
+	if err := json.Unmarshal(serializedpayment, &payment); err != nil {
+		return ErrInvalidPayment(fmt.Errorf("unmarshaling json payment: %s", err))
+	}
 
 	if err := isValidPayment(payment); err != nil {
 		return ErrInvalidPayment(err)

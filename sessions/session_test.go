@@ -22,7 +22,8 @@ const cookieName = "session"
 func TestNoSession(t *testing.T) {
 	s := NewS(t)
 	req := httptest.NewRequest(http.MethodGet, "/api/sample", nil)
-	obj, err := s.Load(req)
+	var obj interface{}
+	err := s.Load(req, &obj)
 	if err != nil {
 		t.Fatalf("loading from empty request: %s", err)
 	}
@@ -40,7 +41,8 @@ func TestEmpty(t *testing.T) {
 		Value: "",
 	})
 
-	obj, err := s.Load(req)
+	var obj interface{}
+	err := s.Load(req, &obj)
 	if err == nil {
 		t.Fatalf("loading empty cookie, should have error")
 	}
@@ -51,7 +53,7 @@ func TestEmpty(t *testing.T) {
 
 func TestNormal(t *testing.T) {
 	s := NewS(t)
-	expected := map[string]interface{}{
+	expected := map[string]string{
 		"hello": "world",
 	}
 
@@ -61,7 +63,8 @@ func TestNormal(t *testing.T) {
 	req := httptest.NewRequest(http.MethodGet, "/api/sample", nil)
 	req.AddCookie(w.Result().Cookies()[0])
 
-	actual, err := s.Load(req)
+	var actual map[string]string
+	err := s.Load(req, &actual)
 	if err != nil {
 		t.Fatalf("loading session: %s", err)
 	}
@@ -84,7 +87,7 @@ func TestHack(t *testing.T) {
 		Value: craftSession(t),
 	})
 
-	_, err := s.Load(req)
+	err := s.Load(req, nil)
 	if err == nil {
 		t.Fatalf("hacked session! should have error")
 	}

@@ -1,25 +1,18 @@
-package api
+package server
 
 import (
-	"encoding/json"
 	"errors"
 	"log"
 	"net/http"
+
+	"github.com/math2001/money/api"
 )
 
-// FIXME: it almost feels like these handles should be in their own package,
-// maybe api/handlers
-
-type loginInfos struct {
-	id       int
-	username int
-}
-
-func (api *API) loginHandler(r *http.Request) *resp {
+func (s *Server) login(r *http.Request) *resp {
 	email := r.PostFormValue("email")
-	user, err := api.Login(email, r.PostFormValue("password"))
+	user, err := s.api.Login(email, r.PostFormValue("password"))
 
-	if errors.Is(err, ErrWrongIdentifiers) {
+	if errors.Is(err, api.ErrWrongIdentifiers) {
 		return &resp{
 			code: http.StatusOK, // FIXME: better error code?
 			msg: kv{
@@ -27,7 +20,7 @@ func (api *API) loginHandler(r *http.Request) *resp {
 			},
 		}
 	} else if err != nil {
-		log.Printf("[err] loging in: %s", err)
+		log.Printf("[err] logging in: %s", err)
 		return &resp{
 			code: http.StatusInternalServerError,
 			msg: kv{
@@ -46,12 +39,12 @@ func (api *API) loginHandler(r *http.Request) *resp {
 		msg: kv{
 			"kind":  "success",
 			"goto":  "/",
-			"email": email,
+			"email": user.Email,
 		},
 	}
 }
 
-func (api *API) signupHandler(r *http.Request) *resp {
+func (s *Server) signup(r *http.Request) *resp {
 	if r.Method != http.MethodPost {
 		return &resp{
 			code: http.StatusMethodNotAllowed,
@@ -78,8 +71,8 @@ func (api *API) signupHandler(r *http.Request) *resp {
 		}
 	}
 
-	user, err := api.SignUp(email, password)
-	if errors.Is(err, ErrEmailAlreadyUsed) {
+	user, err := s.api.SignUp(email, password)
+	if errors.Is(err, api.ErrEmailAlreadyUsed) {
 		return &resp{
 			code: http.StatusNotAcceptable,
 			msg: kv{
@@ -114,7 +107,7 @@ func (api *API) signupHandler(r *http.Request) *resp {
 	}
 }
 
-func (api *API) logoutHandler(r *http.Request) *resp {
+func (s *Server) logout(r *http.Request) *resp {
 	r.ParseMultipartForm(1024) // 1 KB
 
 	if _, ok := r.PostForm["email"]; !ok {
@@ -135,7 +128,7 @@ func (api *API) logoutHandler(r *http.Request) *resp {
 
 	// remember that sessionEmail can be trusted because it's payload is signed
 
-	session, err := api.GetSession(r)
+	session, err := s.getSession(r)
 	if err != nil {
 		log.Printf("[err] loading session: %s", err)
 		return &resp{
@@ -154,8 +147,8 @@ func (api *API) logoutHandler(r *http.Request) *resp {
 		// FIXME: should we let the user know about this?
 	}
 
-	err = api.Logout(session.ID, session.Email)
-	if errors.Is(err, ErrNoCurrentUser) {
+	err = s.api.Logout(session.ID, session.Email)
+	if errors.Is(err, api.ErrNoCurrentUser) {
 		return &resp{
 			code: http.StatusExpectationFailed,
 			msg: kv{
@@ -183,74 +176,5 @@ func (api *API) logoutHandler(r *http.Request) *resp {
 			"goto": "/",
 		},
 		session: &NilSession, // remove the session cookie
-	}
-}
-
-func (api *API) addManualPaymentHandler(r *http.Request) *resp {
-	session, err := api.GetSession(r)
-	if err != nil {
-		log.Printf("[err] loading session: %s", err)
-		return &resp{
-			code: http.StatusNotAcceptable,
-			msg: kv{
-				"kind": "not acceptable",
-				"msg":  "couldn't load session from cookie",
-			},
-		}
-	}
-
-	var payment Payment
-	content := []byte(r.PostFormValue("payment"))
-	if err := json.Unmarshal(content, &payment); err != nil {
-		log.Printf("")
-		return &resp{
-			code: http.StatusNotAcceptable,
-			msg: kv{
-				"kind": "not acceptable",
-				"msg":  "invalid internal payment format",
-			},
-		}
-	}
-
-	u := api.getCurrentUser(session.ID, session.Email)
-	if u == nil {
-		log.Printf("add payments: no current user")
-		return &resp{
-			code: http.StatusNotAcceptable,
-			msg: kv{
-				"kind":    "require log in",
-				"msg":     "please authenticate first",
-				"details": "authentication cookie found, but user forgotten",
-			},
-		}
-	}
-
-	err = api.AddPayment(u, payment)
-	if _, ok := err.(ErrInvalidPayment); ok {
-		return &resp{
-			code: http.StatusOK,
-			msg: kv{
-				"kind": "error",
-				"id":   "invalid payment",
-				"msg":  err.Error(),
-			},
-		}
-	}
-	if err != nil {
-		log.Printf("add payments: api.addpayment: %s", err)
-		return &resp{
-			code: http.StatusInternalServerError,
-			msg: kv{
-				"kind": "internal error",
-				"msg":  "adding payment failed",
-			},
-		}
-	}
-	return &resp{
-		code: http.StatusOK,
-		msg: kv{
-			"kind": "success",
-			"goto": "/", // FIXME: where should it go
-		},
 	}
 }
