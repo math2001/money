@@ -4,6 +4,7 @@ import (
 	"errors"
 	"fmt"
 	"os"
+	"path/filepath"
 
 	"github.com/math2001/money/keysmanager"
 )
@@ -22,11 +23,13 @@ type User struct {
 }
 
 func (u *User) Save(filename string, plaintext []byte) error {
-	panic("not implemented")
+	path := JoinRootPath(u.root, filename)
+	return u.cryptor.Save(path, plaintext)
 }
 
 func (u *User) Load(filename string) ([]byte, error) {
-	panic("not implemented")
+	path := JoinRootPath(u.root, filename)
+	return u.cryptor.Load(path)
 }
 
 // Login can return keysmanager.ErrWrongPassword, keysmanager.ErrPrivCorrupted,
@@ -62,6 +65,29 @@ func (u *User) SignUp(password []byte) error {
 	if err := os.Mkdir(u.root, 0700); err != nil {
 		return fmt.Errorf("signing up, creating user folder: %s", err)
 	}
+	// FIXME: initiate the cryptor
+
+	err := u.keysmanager.SignUp(password)
+	if errors.Is(err, keysmanager.ErrAlreadyLoaded) {
+		return err
+	} else if err != nil {
+		// FIXME: tag internal
+		return err
+	}
+
+	keys, err := u.keysmanager.LoadKeys()
+	if errors.Is(err, keysmanager.ErrPrivCorrupted) {
+		return err
+	} else if err != nil {
+		return fmt.Errorf("db.signup keysm.LoadKeys: %s", err)
+	}
+
+	c, err := NewCryptor(keys.Encryption, keys.MAC)
+	if err != nil {
+		return fmt.Errorf("db.signup newcryptor: %s", err)
+	}
+	u.cryptor = c
+
 	return nil
 }
 
@@ -70,6 +96,6 @@ func NewUser(id int, email, root string) *User {
 		root:        root,
 		Email:       email,
 		ID:          id,
-		keysmanager: keysmanager.NewKeysManager(root),
+		keysmanager: keysmanager.NewKeysManager(filepath.Join(root, "secrets")),
 	}
 }
