@@ -2,6 +2,7 @@ package api
 
 import (
 	"encoding/json"
+	"errors"
 	"fmt"
 	"os"
 
@@ -16,7 +17,11 @@ func (api *API) AddPayment(u *db.User, p map[string]interface{}) error {
 
 	content, err := u.Load("/payments")
 	var payments []Payment
-	if err != nil && !os.IsNotExist(err) {
+	var patherr *os.PathError
+
+	if errors.As(err, &patherr) && os.IsNotExist(patherr) {
+		content = []byte("[]")
+	} else if err != nil {
 		return fmt.Errorf("loading existing payments: %s", err)
 	}
 

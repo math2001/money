@@ -49,7 +49,9 @@ type Cryptor struct {
 func (c *Cryptor) Load(filename string) ([]byte, error) {
 	content, err := ioutil.ReadFile(filename)
 	if err != nil {
-		return nil, fmt.Errorf("reading file: %s", err)
+		// wrap the error to allow the user to determine whether the file
+		// existed or if it was an other kind of error
+		return nil, fmt.Errorf("reading file: %w", err)
 	}
 
 	givenMACSum := content[:c.mac.Size()]

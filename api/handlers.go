@@ -160,8 +160,10 @@ func (api *API) logoutHandler(r *http.Request) *resp {
 			code: http.StatusExpectationFailed,
 			msg: kv{
 				"kind": "error",
+				"id":   "no user",
 				"msg":  "no user is currently logged in",
 			},
+			session: &NilSession, // remove the session cookie
 		}
 	} else if err != nil {
 		log.Printf("logout handler: api.Logout: %s", err)
@@ -184,7 +186,7 @@ func (api *API) logoutHandler(r *http.Request) *resp {
 	}
 }
 
-func (api *API) addPaymentsHandler(r *http.Request) *resp {
+func (api *API) addManualPaymentHandler(r *http.Request) *resp {
 	session, err := api.GetSession(r)
 	if err != nil {
 		log.Printf("[err] loading session: %s", err)
@@ -216,8 +218,9 @@ func (api *API) addPaymentsHandler(r *http.Request) *resp {
 		return &resp{
 			code: http.StatusNotAcceptable,
 			msg: kv{
-				"kind": "require log in",
-				"msg":  "please authenticate first",
+				"kind":    "require log in",
+				"msg":     "please authenticate first",
+				"details": "authentication cookie found, but user forgotten",
 			},
 		}
 	}
@@ -225,6 +228,13 @@ func (api *API) addPaymentsHandler(r *http.Request) *resp {
 	err = api.AddPayment(u, payment)
 	if err != nil {
 		log.Printf("add payments: api.addpayment: %s", err)
+		return &resp{
+			code: http.StatusInternalServerError,
+			msg: kv{
+				"kind": "error",
+				"msg":  "adding payment failed",
+			},
+		}
 	}
 	return &resp{
 		code: http.StatusOK,

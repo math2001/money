@@ -131,7 +131,11 @@ func (api *API) Login(email, password string) (*db.User, error) {
 	}
 
 	u := db.NewUser(match.ID, match.Email, filepath.Join(api.usersdir, strconv.Itoa(match.ID)))
-	u.Login([]byte(password))
+	if err := u.Login([]byte(password)); err != nil {
+		return nil, fmt.Errorf("logging in: %s", err)
+	}
+
+	log.Printf("user is now logged in: %v", u)
 
 	api.loggedusers[u.ID] = u
 

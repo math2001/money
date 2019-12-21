@@ -109,7 +109,7 @@ func NewKeysManager(privroot string) *KeysManager {
 }
 
 // SignUp makes the priv directory, creates the salts, password hash file and
-// generates new keys
+// generates new keys. Returns ErrAlreadyLoaded (already signed up), err
 func (km *KeysManager) SignUp(password []byte) error {
 
 	err := os.Mkdir(km.privroot, 0755)

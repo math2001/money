@@ -53,6 +53,7 @@ type API struct {
 	sessions *sessions.S
 
 	// FIXME: remove users after some time
+    // FIXME: use a mutex
 	loggedusers map[int]*db.User
 }
 
@@ -128,6 +129,8 @@ func (api *API) BindTo(r *mux.Router) {
 	post.HandleFunc("/login", api.h(api.loginHandler))
 	post.HandleFunc("/signup", api.h(api.signupHandler))
 	post.HandleFunc("/logout", api.h(api.logoutHandler))
+
+	post.HandleFunc("/payments/add-manual", api.h(api.addManualPaymentHandler))
 
 	// make sure this stays at the bottom of the function
 	r.PathPrefix("/").HandlerFunc(api.h(func(r *http.Request) *resp {
