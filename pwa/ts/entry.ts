@@ -23,7 +23,8 @@ class App {
   signup: Page;
   logout: Page;
   payments: {
-    [key: string]: Page;
+    list: Page;
+    addManual: Page;
   };
 
   constructor() {
@@ -40,8 +41,8 @@ class App {
       }
 
       console.info("browsing to", url);
-      this.browseto(url);
       history.pushState({ url }, "", url);
+      this.browseto(url);
     });
 
     window.addEventListener("popstate", (e: PopStateEvent) => {
@@ -68,7 +69,8 @@ class App {
     this.logout = new Logout(this.getSection("logout"));
 
     this.payments = {
-      addManual: new payments.addManual(this.getSection("payments-add-manual"))
+      addManual: new payments.addManual(this.getSection("payments-add-manual")),
+      list: new payments.list(this.getSection("payments-list"))
     };
 
     if (State.useremail !== null) {
@@ -117,6 +119,8 @@ class App {
       return this.logout;
     } else if (pathname == "/payments/add-manual") {
       return this.payments.addManual;
+    } else if (pathname == "/payments/list") {
+      return this.payments.list;
     } else {
       return null;
     }

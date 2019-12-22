@@ -54,6 +54,20 @@ func (api *API) AddPayment(u *db.User, serializedpayment []byte) error {
 	return nil
 }
 
+func (api *API) ListPayments(u *db.User) ([]Payment, error) {
+	content, err := u.Load("/payments")
+	if err != nil {
+		return nil, fmt.Errorf("loading payments: %s", err)
+	}
+
+	var ps []Payment
+	if err := json.Unmarshal(content, &ps); err != nil {
+		return nil, fmt.Errorf("parsing payments: %s", err)
+	}
+
+	return ps, nil
+}
+
 // isValidPayment makes sure the required keys are present, and of the right
 // type
 func isValidPayment(p Payment) error {

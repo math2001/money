@@ -135,6 +135,7 @@ func New(dataroot string, password []byte) (*mux.Router, error) {
 	post.HandleFunc("/logout", s.h(s.logout))
 
 	post.HandleFunc("/payments/add-manual", s.h(s.addManualPayment))
+	rapi.HandleFunc("/payments/list", s.h(s.listPayments))
 
 	// make sure this stays at the bottom of the function
 	rapi.PathPrefix("/").HandlerFunc(s.h(func(r *http.Request) *resp {
