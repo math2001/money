@@ -5,6 +5,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1">
     <link rel="manifest" href="manifest.json" />
     <link rel="stylesheet" href="/css/main.css" />
+    <link rel="icon" href="/icons/favicon.ico">
     <title>Money</title>
 </head>
 <body>
@@ -108,14 +109,23 @@
 </main>
 
 <script>
-    if (false && 'serviceWorker' in navigator) {
+    if ('serviceWorker' in navigator) {
       navigator.serviceWorker.register('/js/sw.js', {scope: '/'})
       .then(() => {
         console.info('Service worker registered!')
       }).catch(err => {
-        console.error("service worker didn't register...", err)
+          console.error(err)
+          console.error("service worker didn't register...")
       })
+    } else {
+        console.info("no service worker")
     }
+
+    window.addEventListener('beforeinstallprompt', e => {
+        console.log('install prompt')
+        e.prompt()
+        e.userChoice.then(alert)
+    })
 </script>
 
 <script type="module" src="/js/entry.js"></script>

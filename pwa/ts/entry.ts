@@ -46,6 +46,7 @@ class App {
     });
 
     window.addEventListener("popstate", (e: PopStateEvent) => {
+      console.info("browsing to", e.state.url);
       this.browseto(e.state.url);
     });
 

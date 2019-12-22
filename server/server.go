@@ -154,9 +154,15 @@ func New(dataroot string, password []byte) (*mux.Router, error) {
 	html := r.Methods(http.MethodGet).Subrouter()
 
 	html.PathPrefix("/css/").Handler(http.StripPrefix("/css/", http.FileServer(http.Dir("./pwa/css"))))
+	html.PathPrefix("/icons/").Handler(http.StripPrefix("/icons/", http.FileServer(http.Dir("./pwa/icons"))))
+
+	html.HandleFunc("/manifest.json", func(w http.ResponseWriter, r *http.Request) {
+		http.ServeFile(w, r, "./pwa/manifest.json")
+	})
+
 	html.HandleFunc("/js/sw.js", func(w http.ResponseWriter, r *http.Request) {
 		w.Header().Set("Service-Worker-Allowed", "/")
-		http.ServeFile(w, r, "/js/sw.js")
+		http.ServeFile(w, r, "./pwa/js/sw.js")
 	})
 	html.PathPrefix("/js/").Handler(http.StripPrefix("/js/", http.FileServer(http.Dir("./pwa/js"))))
 
