@@ -9,7 +9,11 @@ export default class List {
     this.table = qs(this.section, "table");
   }
 
-  async setup() {
+  setup() {
+    this.load();
+  }
+
+  async load() {
     const resp = await fetch("/api/payments/list");
     const obj = await resp.json();
     if (obj.kind !== "success") {
@@ -17,6 +21,7 @@ export default class List {
       throw new Error("expected kind 'success'");
     }
 
+    this.table.innerHTML = "";
     const payments = obj.payments;
     if (payments === null) {
       this.table.textContent = "No payments yet";
