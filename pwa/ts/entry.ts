@@ -76,6 +76,8 @@ class App {
     if (State.useremail !== null) {
       EM.emit(EM.loggedin);
     }
+
+    history.pushState({ url: location.pathname }, "", location.pathname);
   }
 
   getSection(name: string): HTMLElement {
