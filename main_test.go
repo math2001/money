@@ -49,6 +49,14 @@ func TestLegalMethods(t *testing.T) {
 			code:    http.StatusOK,
 			headers: headers{"Content-Type": "text/css; charset=utf-8"},
 		},
+		httptest.NewRequest("GET", "/js/sw.js", nil): resp{
+			code:    http.StatusOK,
+			headers: headers{"Content-Type": "application/javascript; charset=utf-8", "Service-Worker-Allowed": "/"},
+		},
+		httptest.NewRequest("GET", "/manifest.json", nil): resp{
+			code:    http.StatusOK,
+			headers: headers{"Content-Type": "application/json; charset=utf-8"},
+		},
 		httptest.NewRequest("GET", "/random", nil): resp{
 			code:    http.StatusOK,
 			headers: headers{"Content-Type": "text/html; charset=utf-8"},
