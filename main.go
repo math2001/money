@@ -15,8 +15,10 @@ func main() {
 
 	// FIXME: ask for password from stdin
 	password := []byte("")
+	// FIXME: make this configurable
+	ocrserver := "localhost:31563" // int("ocr", 10 + 26) -> 31563
 
-	handler, err := server.New("data", password)
+	handler, err := server.New("data", ocrserver, password)
 	if err != nil {
 		log.Fatalf("creating server: %s", err)
 	}

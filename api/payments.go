@@ -1,9 +1,17 @@
 package api
 
 import (
+	"bytes"
 	"encoding/json"
 	"errors"
 	"fmt"
+	"image"
+	"image/png"
+	"io/ioutil"
+	"log"
+	"mime/multipart"
+	"net/http"
+	"net/url"
 	"os"
 
 	"github.com/math2001/money/db"
@@ -68,6 +76,69 @@ func (api *API) ListPayments(u *db.User) ([]Payment, error) {
 	return ps, nil
 }
 
+// Scan requires user just to make sure that only members use this expensive
+// feature
+func (api *API) Scan(user *db.User, header *multipart.FileHeader, img image.Image) (*Payment, error) {
+	log.Printf("start scan job for %s: %q %d", user.Email, header.Filename, header.Size)
+	defer log.Printf("done scan job for %s: %q %d", user.Email, header.Filename, header.Size)
+
+	body := &bytes.Buffer{}
+	writer := multipart.NewWriter(body)
+
+	part, err := writer.CreateFormFile("file", header.Filename)
+	if err != nil {
+		writer.Close()
+		return nil, fmt.Errorf("create form file part: %s", err)
+	}
+	png.Encode(part, img)
+	writer.Close()
+
+	u := &url.URL{
+		Scheme: "http", // FIXME: use https
+		Host:   api.ocrserver,
+		Path:   "/file",
+	}
+	req, err := http.NewRequest(http.MethodPost, u.String(), body)
+	req.Header.Add("Content-Type", writer.FormDataContentType())
+	if err != nil {
+		return nil, fmt.Errorf("creating request: %s", err)
+	}
+
+	resp, err := api.client.Do(req)
+	if err != nil {
+		return nil, fmt.Errorf("doing scan request: %s", err)
+	}
+	if resp.StatusCode != http.StatusOK {
+		body, err := ioutil.ReadAll(resp.Body)
+		if err != nil {
+			log.Printf("reading request body: %s", err)
+		} else {
+			log.Printf("body: %q", body)
+		}
+		return nil, fmt.Errorf("scan request, invalid response code %d instead of 200", resp.StatusCode)
+	}
+
+	// TODO: Contribute to ocrserver, because this isn't right (with version
+	// 0.2.0, I actually get text/plain)
+	if false && resp.Header.Get("Content-Type") != "application/json" {
+		body, err := ioutil.ReadAll(resp.Body)
+		if err != nil {
+			log.Printf("reading request body: %s", err)
+		} else {
+			log.Printf("body: %q", body)
+		}
+		return nil, fmt.Errorf("scan request, invalid response content type %q instead of \"application/json\"", resp.Header.Get("Content-Type"))
+	}
+
+	var payment *Payment
+	decoder := json.NewDecoder(resp.Body)
+	if err := decoder.Decode(&payment); err != nil {
+		return nil, fmt.Errorf("scan request, decode response: %s", err)
+	}
+
+	return payment, nil
+}
+
 // isValidPayment makes sure the required keys are present, and of the right
 // type
 func isValidPayment(p Payment) error {
@@ -87,5 +158,3 @@ func isValidPayment(p Payment) error {
 
 	return nil
 }
-
-// func (api *API) GetBalance(u *db.User)

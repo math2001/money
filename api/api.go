@@ -4,8 +4,10 @@ import (
 	"fmt"
 	"io/ioutil"
 	"log"
+	"net/http"
 	"os"
 	"path/filepath"
+	"time"
 
 	"github.com/math2001/money/keysmanager"
 )
@@ -40,17 +42,23 @@ type API struct {
 	dataroot  string
 	userslist string
 	Usersdir  string
+	ocrserver string
 	// this salt is used to hash the passwords in the database
-	sm *keysmanager.SM
+	sm     *keysmanager.SM
+	client *http.Client
 }
 
-func NewAPI(dataroot string) *API {
+func NewAPI(dataroot string, ocrserver string) *API {
 	log.Printf("API dataroot: %q", dataroot)
 
 	api := &API{
 		dataroot:  dataroot,
 		userslist: filepath.Join(dataroot, "users.list"),
 		Usersdir:  filepath.Join(dataroot, "users"),
+		ocrserver: ocrserver,
+		client: &http.Client{
+			Timeout: 1 * time.Minute,
+		},
 	}
 
 	saltfile := filepath.Join(dataroot, "apisalts")

@@ -53,13 +53,13 @@ type Server struct {
 	cryptor  *db.Cryptor
 }
 
-func New(dataroot string, password []byte) (*mux.Router, error) {
+func New(dataroot, ocrserver string, password []byte) (*mux.Router, error) {
 
 	r := mux.NewRouter().StrictSlash(true)
 
 	km := keysmanager.NewKeysManager(filepath.Join(dataroot, "appsecrets"))
 
-	api := api.NewAPI(dataroot)
+	api := api.NewAPI(dataroot, ocrserver)
 
 	// the datafoot folder doesn't exists, start from scratch
 	if _, err := os.Stat(dataroot); os.IsNotExist(err) {
@@ -136,6 +136,7 @@ func New(dataroot string, password []byte) (*mux.Router, error) {
 
 	post.HandleFunc("/payments/add-manual", s.h(s.addManualPayment))
 	rapi.HandleFunc("/payments/list", s.h(s.listPayments))
+	rapi.HandleFunc("/payments/scan", s.h(s.scan))
 
 	// make sure this stays at the bottom of the function
 	rapi.PathPrefix("/").HandlerFunc(s.h(func(r *http.Request) *resp {

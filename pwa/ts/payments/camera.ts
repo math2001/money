@@ -34,6 +34,7 @@ export default class Camera {
     this.canvas.width = this.video.videoWidth;
     this.canvas.height = this.video.videoHeight;
     const context = this.canvas.getContext("2d");
+
     if (context === null) {
       throw new Error("shouldn't have null context (canvas)");
     }
@@ -41,12 +42,15 @@ export default class Camera {
 
     // send the image the server
     const formdata = new FormData();
-    formdata.append("image", await toBlob(this.canvas, "image/png", 0));
+    formdata.append("img", await toBlob(this.canvas, "image/png", 0));
 
+    console.info("scanning image");
     const resp = await fetch("/api/payments/scan", {
       method: "post",
       body: formdata,
     });
+    const obj = await resp.json();
+    console.log(obj.payment.result);
   }
 
   async startstop() {

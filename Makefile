@@ -1,4 +1,4 @@
-.PHONY: run pwawatch build clean
+.PHONY: run pwawatch build clean ocrserver
 
 run: money
 	./money
@@ -13,6 +13,9 @@ build:
 clean:
 	go clean
 	rm -r ./pwa/js/*
+
+ocrserver:
+	docker run -it -p 31563:8080 otiai10/ocrserver
 
 pwawatch:
 	# DOESN'T BUILD THE SERVICE WORKER
