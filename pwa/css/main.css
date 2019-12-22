@@ -1,6 +1,7 @@
 .page {
   display: none;
   width: 640px;
+  max-width: 100%;
   margin: 128px auto;
 }
 

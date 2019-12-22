@@ -17,7 +17,8 @@ export default class Camera {
       console.error("no camera API available");
       return;
     }
-    qs(this.section, ".no-camera").style.display = "none";
+    qs(this.section, ".no-camera-error").style.display = "none";
+    qs(this.section, ".no-camera-api").style.display = "none";
 
     qs(this.section, ".scan").addEventListener("click", this.scan.bind(this));
     this.startstopbtn.addEventListener("click", this.startstop.bind(this));
@@ -50,6 +51,7 @@ export default class Camera {
     } catch (e) {
       console.error(e);
       alert(`Couldn't get video (${e.name}, see console for more details)`);
+      qs(this.section, ".no-camera-error").style.display = "block";
     }
     console.log("got media");
     this.video.srcObject = this.stream;
