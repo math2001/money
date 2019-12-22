@@ -25,6 +25,7 @@ class App {
   payments: {
     list: Page;
     addManual: Page;
+    camera: Page;
   };
 
   constructor() {
@@ -71,7 +72,8 @@ class App {
 
     this.payments = {
       addManual: new payments.addManual(this.getSection("payments-add-manual")),
-      list: new payments.list(this.getSection("payments-list"))
+      list: new payments.list(this.getSection("payments-list")),
+      camera: new payments.camera(this.getSection("camera")),
     };
 
     if (State.useremail !== null) {
@@ -124,6 +126,8 @@ class App {
       return this.payments.addManual;
     } else if (pathname == "/payments/list") {
       return this.payments.list;
+    } else if (pathname == "/payments/camera") {
+      return this.payments.camera;
     } else {
       return null;
     }

@@ -17,6 +17,7 @@
         <p>Not much to see here <u fill-with="useremail">[internal error]</u></p>
         <p>You could <a href="/payments/add-manual">manually add a payment</a></p>
         <p>Or <a href="/payments/list">see all your payments</a></p>
+        <p>Or <a href="/payments/camera">scan your ticket</a></p>
         <p><a href="/logout">Logout</a></p>
     </section>
     <section class="forvisitor">
@@ -93,6 +94,17 @@
     <h2>Payments</h2>
     <table>
     </table>
+</section>
+
+<section class="page" id="camera">
+    <h2>Take a picture of your ticket</h2>
+    <p class="no-camera">
+        No camera API found. Please update your browser.
+    </p>
+
+    <video autoplay></video>
+    <button type="button" class="scan">Scan</button>
+    <button type="button" class="start-stop">Start</button>
 </section>
 
 
