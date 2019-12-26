@@ -101,7 +101,6 @@ export class Alerts {
   // addAlert creates an alert and adds it to the html. It returns its id
   // which can then be used
   static add(params: AlertParams) {
-    console.info("add alert", params);
     const alert = document.createElement("article");
     alert.innerHTML = `
     <div class="alert-content">

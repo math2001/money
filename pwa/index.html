@@ -42,7 +42,6 @@
         <p>
              <input type="submit" value="Login">
         </p>
-        <p class="form-status">Fill in your details</p>
     </form>
     <p>Don't have a login yet? <a href="/signup">Sign up</a>!</p>
 </section>
@@ -125,10 +124,13 @@
   <p>Go back <a href="/">home</a></p>
 </section>
 
+<div id="alerts">
+</div>
+
 </main>
 
 <script>
-    if ('serviceWorker' in navigator) {
+    if (false && 'serviceWorker' in navigator) {
       navigator.serviceWorker.register('/js/sw.js', {scope: '/'})
       .then(() => {
         console.info('Service worker registered!')

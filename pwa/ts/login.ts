@@ -1,33 +1,76 @@
-import { qs, EM, State } from "./utils.js";
+import { qs, EM, State, Alerts } from "./utils.js";
+
+const HOST = "login";
 
 export default class Login {
   section: HTMLElement;
   form: HTMLFormElement;
-  formstatus: HTMLElement;
 
   constructor(section: HTMLElement) {
     this.section = section;
 
     this.form = qs(this.section, "form.login-form") as HTMLFormElement;
     this.form.addEventListener("submit", this.submitForm.bind(this));
-    this.formstatus = qs(this.section, ".form-status");
   }
 
   setup() {}
 
-  submitForm(e: Event) {
+  async submitForm(e: Event) {
     e.preventDefault();
-    this.formstatus.innerHTML = "Sending request...";
+    // make the form data before disabling every input, because otherwise
+    // they aren't added to the object
+    const formData = new FormData(this.form);
 
-    fetch(this.form.action, {
-      method: "post",
-      body: new FormData(this.form)
-    })
-      .then((resp: Response) => resp.json())
-      .then(this.postlogin.bind(this));
+    for (let input of this.form.querySelectorAll("input")) {
+      input.disabled = true;
+    }
+    qs(this.form, "input[type='submit']").value = "Login in";
+    Alerts.removeAll(HOST);
+
+    let obj;
+    try {
+      const resp = await fetch(this.form.action, {
+        method: this.form.method,
+        body: formData,
+      });
+      obj = await resp.json();
+    } catch (e) {
+      console.error(e);
+      Alerts.add({
+        html:
+          "Network error. Make sure you are connected to the internet " +
+          "(check console for more details)",
+        kind: Alerts.ERROR,
+        host: HOST,
+      });
+      return;
+    } finally {
+      for (let input of this.form.querySelectorAll("input")) {
+        input.disabled = false;
+      }
+    }
+    this.postlogin(obj);
   }
 
   postlogin(obj: any) {
+    console.info("login response", obj.kind);
+    if (obj.kind === "wrong identifiers") {
+      Alerts.add({
+        html: "Wrong identifiers. Please try again",
+        kind: Alerts.ERROR,
+        host: HOST,
+      });
+      return;
+    } else if (obj.kind === "internal error") {
+      Alerts.add({
+        kind: Alerts.ERROR,
+        host: HOST,
+        html:
+          "Oops... Server encoutered an internal error. Please try again " +
+          "or report if it keeps on occuring",
+      });
+    }
+
     if (obj.kind !== "success") {
       console.error("response:", obj);
       throw new Error("expected 'success' response");
