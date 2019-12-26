@@ -223,6 +223,11 @@ func (s *Server) h(h func(*http.Request) *resp) http.HandlerFunc {
 			}
 		}
 
+		if resp.msg["kind"] == "internal error" {
+			// FIXME: better error reporting
+			log.Printf("!! warning !! internal error: %v %v", r, resp)
+		}
+
 		w.WriteHeader(resp.code)
 		if err := encoder.Encode(resp.msg); err != nil {
 			log.Printf("[err] encoding json object in %s: %s", handlerName, err)
