@@ -2,9 +2,11 @@ package server
 
 import (
 	"errors"
+	"fmt"
 	"log"
 	"net/http"
 
+	"github.com/badoux/checkmail"
 	"github.com/math2001/money/api"
 )
 
@@ -26,7 +28,6 @@ func (s *Server) login(r *http.Request) *resp {
 			code: http.StatusInternalServerError,
 			msg: kv{
 				"kind": "internal error",
-				"msg":  "logging in",
 			},
 		}
 	}
@@ -68,21 +69,86 @@ func (s *Server) signup(r *http.Request) *resp {
 		}
 	}
 
+	r.ParseMultipartForm(1 << 20) // 1 MB of memory
+
 	// FIXME: validate email and password
 	// email: regex and stdlib? or just strings.contains
 	// password: min length, evaluate strength?
 
-	email := r.PostFormValue("email")
-	password := r.PostFormValue("password")
-	confirm := r.PostFormValue("confirm")
+	emails, eok := r.PostForm["email"]
+	passwords, pok := r.PostForm["password"]
+	confirms, cok := r.PostForm["confirm"]
+	if !eok || !pok || !cok {
+		log.Printf("!! warning !! missing fields %t %t %t", eok, pok, cok)
+		return &resp{
+			code: http.StatusBadRequest,
+			msg: kv{
+				"kind": "bad request",
+				"msg":  "missing fields",
+				"help": []string{
+					"This is the fault of the developers, not yours. Please report this issue :-)",
+				},
+			},
+		}
+	}
+
+	if len(emails) != 1 || len(passwords) != 1 || len(confirms) != 1 {
+		log.Printf("!! warning !! duplicate fields %d %d %d", len(emails), len(passwords), len(confirms))
+		return &resp{
+			code: http.StatusBadRequest,
+			msg: kv{
+				"kind": "bad request",
+				"msg":  "duplicate fields",
+				"help": []string{
+					"This is the fault of the developers, not yours. Please report this issue :-)",
+				},
+			},
+		}
+	}
+
+	email, password, confirm := emails[0], passwords[0], confirms[0]
+
+	err := checkmail.ValidateFormat(email)
+	if errors.Is(err, checkmail.ErrBadFormat) {
+		return &resp{
+			code: http.StatusExpectationFailed,
+			msg: kv{
+				"kind": "invalid input",
+				"msg":  fmt.Sprintf("Invalid email: %q didn't match our required format", email),
+			},
+		}
+	} else if err != nil {
+		log.Printf("!! warning !! unknown error from checkmail: %s", err)
+		return &resp{
+			code: http.StatusExpectationFailed,
+			msg: kv{
+				"kind": "invalid input",
+				"msg":  "invalid email: unkown error",
+			},
+		}
+	}
+
 	if password != confirm {
 		return &resp{
 			code: http.StatusExpectationFailed,
 			msg: kv{
 				"kind": "password dismatch",
+				"msg":  "Your passwords don't match. Please try again.",
 			},
 		}
 	}
+
+	if len(password) < 8 {
+		return &resp{
+			code: http.StatusExpectationFailed,
+			msg: kv{
+				"kind": "password too short",
+				"msg":  "Your password is too short. It should be at least 8 characters.",
+			},
+		}
+	}
+
+	// FIXME: check passwords against common bank of password
 
 	user, err := s.api.SignUp(email, password)
 	if errors.Is(err, api.ErrEmailAlreadyUsed) {
@@ -90,6 +156,10 @@ func (s *Server) signup(r *http.Request) *resp {
 			code: http.StatusNotAcceptable,
 			msg: kv{
 				"kind": "email already used",
+				"msg":  "This emails has already been used. Did you forget your password? If yes, you should contact us",
+				"FIXME": []string{
+					"implement password reset via email",
+				},
 			},
 		}
 	} else if err != nil {
@@ -98,13 +168,9 @@ func (s *Server) signup(r *http.Request) *resp {
 			code: http.StatusInternalServerError,
 			msg: kv{
 				"kind": "internal error",
-				"msg":  "failed to sign up user",
 			},
 		}
 	}
-
-	// FIXME: check session for where the user is coming from, and redirect him
-	// there (don't forget to remove that session item)
 
 	encryptedPassword, err := s.cryptor.Encrypt([]byte(password))
 	if err != nil {
@@ -116,6 +182,9 @@ func (s *Server) signup(r *http.Request) *resp {
 			},
 		}
 	}
+
+	// FIXME: check session for where the user is coming from, and redirect him
+	// there (don't forget to remove that session item)
 
 	return &resp{
 		code: http.StatusOK,
@@ -188,7 +257,6 @@ func (s *Server) logout(r *http.Request) *resp {
 			code: http.StatusInternalServerError,
 			msg: kv{
 				"kind": "internal error",
-				"msg":  "logging user out",
 			},
 			session: &NilSession,
 		}

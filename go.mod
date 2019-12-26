@@ -3,6 +3,7 @@ module github.com/math2001/money
 go 1.13
 
 require (
+	github.com/badoux/checkmail v0.0.0-20181210160741-9661bd69e9ad
 	github.com/dvyukov/go-fuzz v0.0.0-20191206100749-a378175e205c // indirect
 	github.com/elazarl/go-bindata-assetfs v1.0.0 // indirect
 	github.com/google/gofuzz v1.0.0

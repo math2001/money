@@ -24,16 +24,16 @@ export default class Login {
     for (let input of this.form.querySelectorAll("input")) {
       input.disabled = true;
     }
-    qs(this.form, "input[type='submit']").value = "Login in";
+    (qs(this.form, "input[type='submit']") as HTMLInputElement).value =
+      "Login in";
     Alerts.removeAll(HOST);
 
-    let obj;
+    let resp;
     try {
-      const resp = await fetch(this.form.action, {
+      resp = await fetch(this.form.action, {
         method: this.form.method,
         body: formData,
       });
-      obj = await resp.json();
     } catch (e) {
       console.error(e);
       Alerts.add({
@@ -49,6 +49,7 @@ export default class Login {
         input.disabled = false;
       }
     }
+    const obj = await resp.json();
     this.postlogin(obj);
   }
 

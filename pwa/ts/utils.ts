@@ -52,7 +52,7 @@ export function qs(from: Element | Document, selector: string): HTMLElement {
   return element;
 }
 
-export interface AlertParams {
+interface AlertParams {
   kind: number;
   html: string;
   host: string;

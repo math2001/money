@@ -1,3 +1,6 @@
+- [ ] make a simple endpoint /errorreport or something, and send post request
+  on it. Make a util function on the client
+
 - [ ] delete a store file
 - [ ] change password
 - [ ] change keys (without changing password)
