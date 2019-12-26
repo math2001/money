@@ -1,4 +1,4 @@
-import { State, EM, qs } from "./utils.js";
+import { State, EM, qs, Alerts } from "./utils.js";
 import Home from "./home.js";
 import Login from "./login.js";
 import SignUp from "./signup.js";
@@ -30,6 +30,8 @@ class App {
 
   constructor() {
     this.current = null;
+
+    Alerts.init(qs(document, "#alerts"));
 
     this.main = qs(document, "main");
 
