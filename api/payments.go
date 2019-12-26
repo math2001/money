@@ -63,12 +63,15 @@ func (api *API) AddPayment(u *db.User, serializedpayment []byte) error {
 }
 
 func (api *API) ListPayments(u *db.User) ([]Payment, error) {
+	var ps []Payment
 	content, err := u.Load("/payments")
-	if err != nil {
+	var patherr *os.PathError
+	if errors.As(err, &patherr) && os.IsNotExist(patherr) {
+		return ps, nil // no payments
+	} else if err != nil {
 		return nil, fmt.Errorf("loading payments: %s", err)
 	}
 
-	var ps []Payment
 	if err := json.Unmarshal(content, &ps); err != nil {
 		return nil, fmt.Errorf("parsing payments: %s", err)
 	}

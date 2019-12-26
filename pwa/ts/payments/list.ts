@@ -10,6 +10,7 @@ export default class List {
   }
 
   setup() {
+    this.table.innerHTML = "";
     this.load();
   }
 
@@ -21,7 +22,6 @@ export default class List {
       throw new Error("expected kind 'success'");
     }
 
-    this.table.innerHTML = "";
     const payments = obj.payments;
     if (payments === null) {
       this.table.textContent = "No payments yet";
