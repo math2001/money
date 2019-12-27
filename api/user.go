@@ -11,18 +11,19 @@ import (
 	"strconv"
 
 	"github.com/math2001/money/db"
-	"golang.org/x/crypto/scrypt"
 )
 
 var ErrEmailAlreadyUsed = errors.New("email already used")
 
 var ErrWrongIdentifiers = errors.New("wrong identifiers")
 
+// the fields have to be exported for json to be able to access them when
+// encoding
 type user struct {
-	email    string
-	password []byte
-	id       int
-	admin    bool
+	Email    string
+	Password []byte
+	ID       int
+	Admin    bool
 }
 
 // SignUp creates a new user
@@ -49,26 +50,22 @@ func (api *API) SignUp(email, password string) (*db.User, error) {
 
 	// check if the email has already been used
 	for _, user := range users {
-		if user.email == email {
+		if user.Email == email {
 			log.Printf("Return email already used")
 			return nil, ErrEmailAlreadyUsed
 		}
 	}
 
-	// FIXME: the key size (32) should be a constant
-	hashedpassword, err := scrypt.Key([]byte(password), api.sm.Get(saltpassword), 32768, 8, 1, 32)
-	if err != nil {
-		return nil, fmt.Errorf("signing up, hashing password: %s", err)
-	}
+	hashedpassword := scryptKey([]byte(password), api.sm.Get(saltpassword))
 
 	// add entry in users file
 	userid := len(users) + 1
 	newuser := user{
-		email:    email,
-		password: hashedpassword,
-		id:       userid,
+		Email:    email,
+		Password: hashedpassword,
+		ID:       userid,
 		// the first user to sign up is automatically admin
-		admin: len(users) == 0,
+		Admin: len(users) == 0,
 	}
 	users = append(users, newuser)
 
@@ -87,12 +84,12 @@ func (api *API) SignUp(email, password string) (*db.User, error) {
 		return nil, fmt.Errorf("signing up, saving user to database: %s", err)
 	}
 
-	u := db.NewUser(newuser.id, newuser.email, newuser.admin, filepath.Join(api.Usersdir, strconv.Itoa(userid)))
+	u := db.NewUser(newuser.ID, newuser.Email, newuser.Admin, filepath.Join(api.Usersdir, strconv.Itoa(userid)))
 	if err := u.SignUp([]byte(password)); err != nil {
 		return nil, fmt.Errorf("signing up db.User: %s", err)
 	}
 
-	log.Printf("Signed up %q", newuser.email)
+	log.Printf("Signed up %q", newuser.Email)
 
 	return u, nil
 }
@@ -122,18 +119,18 @@ func (api *API) Login(email, password string) (*db.User, error) {
 	var match user
 	// check if the email has already been used
 	for _, user := range users {
-		if user.email == email && bytes.Equal(user.password, hashedpassword) {
+		if user.Email == email && bytes.Equal(user.Password, hashedpassword) {
 			match = user
 			break
 		}
 	}
 
 	// ie. no match
-	if match.id == 0 {
+	if match.ID == 0 {
 		return nil, ErrWrongIdentifiers
 	}
 
-	u := db.NewUser(match.id, match.email, match.admin, filepath.Join(api.Usersdir, strconv.Itoa(match.id)))
+	u := db.NewUser(match.ID, match.Email, match.Admin, filepath.Join(api.Usersdir, strconv.Itoa(match.ID)))
 	if err := u.Login([]byte(password)); err != nil {
 		return nil, fmt.Errorf("logging in: %s", err)
 	}
