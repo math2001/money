@@ -46,6 +46,7 @@ type resp struct {
 	// FIXME: rename to body
 	msg     kv
 	session *Session
+	err     error
 }
 
 type Server struct {
@@ -230,9 +231,6 @@ func (s *Server) h(h func(*http.Request) *resp) http.HandlerFunc {
 		}
 
 		if resp.msg["kind"] == "internal error" {
-			// FIXME: check if it has field "reported" = true, otherwise
-			// manually report
-			log.Printf("!! warning !! internal error: %v", r)
 			if _, ok := resp.msg["msg"]; ok {
 				log.Printf("!! warning !! no details should be given about internal errors. %v", resp.msg)
 			}
@@ -248,12 +246,39 @@ func (s *Server) h(h func(*http.Request) *resp) http.HandlerFunc {
 				Request:        r,
 				User:           user,
 				ErrGettingUser: err,
+				Err:            resp.err,
 			})
 			if err != nil {
 				log.Printf("[err] reporting error: %s", err)
 			}
+			resp.err = nil
 		}
 
+		if resp.err != nil {
+			log.Printf("!! warning !! response had non-nil err field before writing!")
+			user, err := s.getCurrentUser(r)
+			if err != nil && !errors.Is(err, ErrNoCurrentUser) {
+				log.Printf("!! warning !! getting current user for error report: %s", err)
+			}
+			err = s.api.Report(&api.Report{
+				Kind:           "internal error",
+				Description:    "response had non-nil err field before writing",
+				From:           api.ReportFromServer,
+				Request:        r,
+				User:           user,
+				ErrGettingUser: err,
+				Err:            resp.err,
+				Details: map[string]interface{}{
+					"explanation": "this is bad because this is giving details" +
+						"about the internals of the server, which the user shouldn't" +
+						"know anything about",
+				},
+			})
+			if err != nil {
+				log.Printf("[err] reporting error: %s", err)
+			}
+			resp.err = nil
+		}
 		w.WriteHeader(resp.code)
 		if err := encoder.Encode(resp.msg); err != nil {
 			log.Printf("[err] encoding json object in %s: %s", handlerName, err)
