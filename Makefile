@@ -22,6 +22,9 @@ pwawatch:
 	# you can set that up yourself by doing tsc -p tsconfig-sw.json --watch
 	tsc --watch
 
+doc:
+	godoc -http=:6060
+
 money: $(shell fd --extension go)
 	go build
 

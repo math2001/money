@@ -1,3 +1,11 @@
+- [ ] when manual payment is submitted, inputs should be emptied
+- [ ] implement dev mode. Show a fat warning at the top, but allow for empty passwords
+- [ ] this whole concept of login/signup for the server is bad, because that
+  means that when I introduce a new feature, I have to delete the data/ folder
+  and restart from scratch (which is obviously not possible in prod). So, every
+  componenent should automatically detect whether the file it needs exist, and
+  if not, then create it (maybe log something out too)
+- [ ] make cryptor require streams (that it'll then convert to byte) so that when we actually swap to streams, it's easy
 - [ ] make a simple endpoint /errorreport or something, and send post request
   on it. Make a util function on the client
 

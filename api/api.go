@@ -44,8 +44,9 @@ type API struct {
 	Usersdir  string
 	ocrserver string
 	// this salt is used to hash the passwords in the database
-	sm     *keysmanager.SM
-	client *http.Client
+	sm           *keysmanager.SM
+	client       *http.Client
+	errorreports *ErrorReportStore
 }
 
 func NewAPI(dataroot string, ocrserver string) *API {
@@ -59,6 +60,7 @@ func NewAPI(dataroot string, ocrserver string) *API {
 		client: &http.Client{
 			Timeout: 1 * time.Minute,
 		},
+		errorreports: NewErrorReportStore(filepath.Join(dataroot, "errorreports")),
 	}
 
 	saltfile := filepath.Join(dataroot, "apisalts")
@@ -69,7 +71,8 @@ func NewAPI(dataroot string, ocrserver string) *API {
 
 // Initialize creates all the required file (should only be run if they don't
 // already exist)
-func (api *API) Initialize() error {
+// ie it's executed only when the server is started for the first time
+func (api *API) Initialize(password []byte) error {
 	if err := os.Mkdir(api.Usersdir, 0700); err != nil {
 		return fmt.Errorf("mkdir %q: %s", api.Usersdir, err)
 	}
@@ -79,13 +82,19 @@ func (api *API) Initialize() error {
 	if err := ioutil.WriteFile(api.userslist, []byte("[]"), 0644); err != nil {
 		return fmt.Errorf("writing [] to file %s", err)
 	}
+	if err := api.errorreports.SignUp(password); err != nil {
+		return fmt.Errorf("signing up user reports: %s", err)
+	}
 	return nil
 }
 
 // Resume loads stuff from files to be ready to serve
-func (api *API) Resume() error {
+func (api *API) Resume(password []byte) error {
 	if err := api.sm.Load(); err != nil {
 		return fmt.Errorf("loading salt: %s", err)
+	}
+	if err := api.errorreports.Login(password); err != nil {
+		return fmt.Errorf("logging in: %s", err)
 	}
 	return nil
 }

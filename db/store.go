@@ -9,31 +9,41 @@ import (
 	"github.com/math2001/money/keysmanager"
 )
 
-// UserDB is the folder containing all the user's data.
-// Everything in their is encrypted using his password
-type User struct {
-	// root is the user's own folder (see api.go)
-	ID          int
-	Email       string
+// Store is a folder containing all the store's data.
+// Everything in their is encrypted using the store's password
+type Store struct {
 	root        string
 	cryptor     *Cryptor
 	keysmanager *keysmanager.KeysManager
 }
 
-func (u *User) Save(filename string, plaintext []byte) error {
-	path := JoinRootPath(u.root, filename)
-	return u.cryptor.Save(path, plaintext)
+var ErrAuthenticateFirst = errors.New("authentication required")
+
+func (s *Store) Save(filename string, plaintext []byte) error {
+	path := JoinRootPath(s.root, filename)
+	if s.cryptor == nil {
+		return ErrAuthenticateFirst
+	}
+	return s.cryptor.Save(path, plaintext)
 }
 
-func (u *User) Load(filename string) ([]byte, error) {
-	path := JoinRootPath(u.root, filename)
-	return u.cryptor.Load(path)
+func (s *Store) Load(filename string) ([]byte, error) {
+	path := JoinRootPath(s.root, filename)
+	if s.cryptor == nil {
+		return nil, ErrAuthenticateFirst
+	}
+	return s.cryptor.Load(path)
+}
+
+func (s *Store) Exists(filename string) bool {
+	_, err := os.Stat(JoinRootPath(s.root, filename))
+	return err == nil || os.IsExist(err)
 }
 
 // Login can return keysmanager.ErrWrongPassword, keysmanager.ErrPrivCorrupted,
 // ErrAlreadyLoaded (internal) or err
-func (u *User) Login(password []byte) error {
-	err := u.keysmanager.Login(password)
+func (s *Store) Login(password []byte) error {
+	err := s.keysmanager.Login(password)
 	if errors.Is(err, keysmanager.ErrWrongPassword) || errors.Is(err, keysmanager.ErrPrivCorrupted) {
 		return err
 	} else if errors.Is(err, keysmanager.ErrAlreadyLoaded) {
@@ -43,7 +53,7 @@ func (u *User) Login(password []byte) error {
 		return fmt.Errorf("db.login keysm.Login: %s", err)
 	}
 
-	keys, err := u.keysmanager.LoadKeys()
+	keys, err := s.keysmanager.LoadKeys()
 	if errors.Is(err, keysmanager.ErrPrivCorrupted) {
 		return err
 	} else if err != nil {
@@ -54,18 +64,17 @@ func (u *User) Login(password []byte) error {
 	if err != nil {
 		return fmt.Errorf("db.login newcryptor: %s", err)
 	}
-	u.cryptor = c
+	s.cryptor = c
 
 	return nil
 }
 
-func (u *User) SignUp(password []byte) error {
-	if err := os.Mkdir(u.root, 0700); err != nil {
-		return fmt.Errorf("signing up, creating user folder: %s", err)
+func (s *Store) SignUp(password []byte) error {
+	if err := os.Mkdir(s.root, 0700); err != nil {
+		return fmt.Errorf("signing up, creating store folder: %s", err)
 	}
-	// FIXME: initiate the cryptor
 
-	err := u.keysmanager.SignUp(password)
+	err := s.keysmanager.SignUp(password)
 	if errors.Is(err, keysmanager.ErrAlreadyLoaded) {
 		return err
 	} else if err != nil {
@@ -73,7 +82,7 @@ func (u *User) SignUp(password []byte) error {
 		return err
 	}
 
-	keys, err := u.keysmanager.LoadKeys()
+	keys, err := s.keysmanager.LoadKeys()
 	if errors.Is(err, keysmanager.ErrPrivCorrupted) {
 		return err
 	} else if err != nil {
@@ -84,16 +93,18 @@ func (u *User) SignUp(password []byte) error {
 	if err != nil {
 		return fmt.Errorf("db.signup newcryptor: %s", err)
 	}
-	u.cryptor = c
+	s.cryptor = c
 
 	return nil
 }
 
-func NewUser(id int, email, root string) *User {
-	return &User{
+func (s Store) String() string {
+	return fmt.Sprintf("Store{root: %q}", s.root)
+}
+
+func NewStore(root string) *Store {
+	return &Store{
 		root:        root,
-		Email:       email,
-		ID:          id,
 		keysmanager: keysmanager.NewKeysManager(filepath.Join(root, "secrets")),
 	}
 }

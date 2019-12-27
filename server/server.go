@@ -63,7 +63,7 @@ func New(dataroot, ocrserver string, password []byte) (*mux.Router, error) {
 
 	// the datafoot folder doesn't exists, start from scratch
 	if _, err := os.Stat(dataroot); os.IsNotExist(err) {
-		log.Println("Initiating fresh api...")
+		log.Println("Initiating fresh server...")
 		if err := os.Mkdir(dataroot, 0700); err != nil {
 			return nil, fmt.Errorf("mkdir %q: %s", dataroot, err)
 		}
@@ -72,7 +72,7 @@ func New(dataroot, ocrserver string, password []byte) (*mux.Router, error) {
 			return nil, fmt.Errorf("km.SignUp: %s", err)
 		}
 
-		if err := api.Initialize(); err != nil {
+		if err := api.Initialize(password); err != nil {
 			return nil, fmt.Errorf("api.Initialize: %s", err)
 		}
 
@@ -81,7 +81,7 @@ func New(dataroot, ocrserver string, password []byte) (*mux.Router, error) {
 		if err := km.Login(password); err != nil {
 			return nil, err
 		}
-		if err := api.Resume(); err != nil {
+		if err := api.Resume(password); err != nil {
 			return nil, fmt.Errorf("api.Resume: %s", err)
 		}
 	}
@@ -102,6 +102,7 @@ func New(dataroot, ocrserver string, password []byte) (*mux.Router, error) {
 		// SECURITY ISSUE (re use of keys)
 		Key: keys.MAC,
 	})
+
 	if err != nil {
 		return nil, fmt.Errorf("creating sessions.S: %s", err)
 	}
@@ -133,6 +134,7 @@ func New(dataroot, ocrserver string, password []byte) (*mux.Router, error) {
 	post.HandleFunc("/login", s.h(s.login))
 	post.HandleFunc("/signup", s.h(s.signup))
 	post.HandleFunc("/logout", s.h(s.logout))
+	post.HandleFunc("/reporterror", s.h(s.reporterror))
 
 	post.HandleFunc("/payments/add-manual", s.h(s.addManualPayment))
 	rapi.HandleFunc("/payments/list", s.h(s.listPayments))
@@ -224,8 +226,28 @@ func (s *Server) h(h func(*http.Request) *resp) http.HandlerFunc {
 		}
 
 		if resp.msg["kind"] == "internal error" {
-			// FIXME: better error reporting
-			log.Printf("!! warning !! internal error: %v %v", r, resp)
+			// FIXME: check if it has field "reported" = true, otherwise
+			// manually report
+			log.Printf("!! warning !! internal error: %v", r)
+			if _, ok := resp.msg["msg"]; ok {
+				log.Printf("!! warning !! no details should be given about internal errors. %v", resp.msg)
+			}
+			user, err := s.getCurrentUser(r)
+			if err != nil && !errors.Is(err, ErrNoCurrentUser) {
+				log.Printf("!! warning !! getting current user for error report: %s", err)
+				// keep going, we will just have no user for that error report
+			}
+			err = s.api.Report(&api.Report{
+				Kind:           "internal error",
+				Description:    "handler responded with 'internal error' but didn't report anything",
+				From:           api.ReportFromServer,
+				Request:        r,
+				User:           user,
+				ErrGettingUser: err,
+			})
+			if err != nil {
+				log.Printf("[err] reporting error: %s", err)
+			}
 		}
 
 		w.WriteHeader(resp.code)

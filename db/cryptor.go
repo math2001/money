@@ -138,7 +138,8 @@ func (c *Cryptor) Encrypt(plaintext []byte) ([]byte, error) {
 	return append(signature, ciphertext...), nil
 }
 
-// Save encrypts plaintext and saves it to filename
+// Save encrypts plaintext and saves it to filename (it scratch filename if it
+// already exists)
 func (c *Cryptor) Save(filename string, plaintext []byte) error {
 	ciphertext, err := c.Encrypt(plaintext)
 	if err != nil {
