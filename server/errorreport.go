@@ -62,9 +62,9 @@ func (s *Server) reportsList(r *http.Request) *resp {
 	if errors.Is(err, ErrNoCurrentUser) {
 		log.Printf("listing reports: no current user")
 		return &resp{
-			code: http.StatusNotAcceptable,
+			code: http.StatusUnauthorized,
 			msg: kv{
-				"kind": "require log in",
+				"kind": "unauthorized",
 				"msg":  "please authenticate first",
 			},
 		}

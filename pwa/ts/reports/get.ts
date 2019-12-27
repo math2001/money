@@ -2,17 +2,17 @@ import { EM, qs, Alerts, State } from "../utils.js";
 
 const HOST = "report get";
 
-export default class ReportGet {
+export default class {
   section: HTMLElement;
   state: HTMLElement;
   content: HTMLElement;
-  filename: HTMLElement;
+  filename: HTMLAnchorElement;
 
   constructor(section: HTMLElement) {
     this.section = section;
     this.state = qs(this.section, ".state");
     this.content = qs(this.section, ".report-content");
-    this.filename = qs(this.section, ".report-filename");
+    this.filename = qs(this.section, ".report-filename") as HTMLAnchorElement;
   }
 
   async setup() {
@@ -23,11 +23,13 @@ export default class ReportGet {
     const filename = params.get("filename");
     if (filename === null) {
       this.filename.textContent = "not specified";
+      this.filename.href = "#";
       this.state.innerHTML = `Missing filename parameter. Go back to the
       <a href="/reports/list">report list<a>`;
       return;
     }
     this.filename.textContent = filename;
+    this.filename.href = "";
 
     const url = new URL("/api/reports/get", location.href);
     console.log(url);

@@ -98,6 +98,12 @@ export class Alerts {
            available in the console.`,
   };
 
+  static networkError = {
+    kind: Alerts.ERROR,
+    html: `A network error occured. Are you sure you are connected to
+           the internet?. More details are available in the console`,
+  };
+
   static init(root: HTMLElement) {
     this.alerts = [];
     this.root = root;

@@ -5,7 +5,9 @@ import SignUp from "./signup.js";
 import Err404 from "./err404.js";
 import Logout from "./logout.js";
 import payments from "./payments/index.js";
-import reports from "./reports/index.js";
+
+import ReportsGet from "./reports/get.js";
+import ReportsList from "./reports/list.js";
 
 interface Page {
   setup(): void;
@@ -30,6 +32,7 @@ class App {
   };
   reports: {
     Get: Page;
+    List: Page;
   };
 
   constructor() {
@@ -83,7 +86,8 @@ class App {
     };
 
     this.reports = {
-      Get: new reports.Get(this.getSection("reports-get")),
+      Get: new ReportsGet(this.getSection("reports-get")),
+      List: new ReportsList(this.getSection("reports-list")),
     };
 
     if (State.useremail !== null) {
@@ -147,6 +151,8 @@ class App {
       return this.payments.camera;
     } else if (pathname == "/reports/get") {
       return this.reports.Get;
+    } else if (pathname == "/reports/list") {
+      return this.reports.List;
     } else {
       return null;
     }
