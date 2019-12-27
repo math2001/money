@@ -176,7 +176,8 @@ func New(dataroot, ocrserver string, password []byte) (*mux.Router, error) {
 
 	html.PathPrefix("/").HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		if r.URL.Path != "/" && strings.HasSuffix(r.URL.Path, "/") {
-			http.Redirect(w, r, r.URL.Path[:len(r.URL.Path)-1], http.StatusPermanentRedirect)
+			r.URL.Path = r.URL.Path[:len(r.URL.Path)-1]
+			http.Redirect(w, r, r.URL.RequestURI(), http.StatusPermanentRedirect)
 			return
 		}
 		if strings.HasPrefix(r.URL.Path, "/api/") {

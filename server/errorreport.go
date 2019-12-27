@@ -3,6 +3,7 @@ package server
 import (
 	"encoding/json"
 	"errors"
+	"fmt"
 	"log"
 	"net/http"
 
@@ -115,7 +116,7 @@ func (s *Server) reportsGet(r *http.Request) *resp {
 		return &resp{
 			code: http.StatusNotAcceptable,
 			msg: kv{
-				"kind": "require log in",
+				"kind": "unauthorized",
 				"msg":  "please authenticate first",
 			},
 		}
@@ -156,6 +157,7 @@ func (s *Server) reportsGet(r *http.Request) *resp {
 			code: http.StatusNotFound,
 			msg: kv{
 				"kind": "not found",
+				"msg":  fmt.Sprintf("report %q not found", filenames[0]),
 			},
 		}
 	} else if err != nil {

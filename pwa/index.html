@@ -37,7 +37,7 @@
         </p>
         <p>
             <label for="password">Password</label>:
-            <input type="password" name="password">
+            <input type="password" name="password" value="123456789">
         </p>
         <p>
              <input type="submit" value="Login">
@@ -51,15 +51,15 @@
     <form action="/api/signup" class="signup-form" method="post">
         <p>
             <label for="email">Email</label>:
-            <input type="text" name="email" placeholder="youremail@example.com">
+            <input type="text" name="email" placeholder="youremail@example.com" value="math2001@example.net">
         </p>
         <p>
             <label for="password">Password</label>:
-            <input type="password" name="password">
+            <input type="password" name="password" value="123456789">
         </p>
         <p>
             <label for="confirm">Confirm password</label>:
-            <input type="password" name="confirm">
+            <input type="password" name="confirm" value="123456789">
         </p>
 
         <p><code>
@@ -112,6 +112,27 @@
     <canvas style="display: none"></canvas>
 </section>
 
+<!-- Reports -->
+
+<!-- FIXME: some sections are only used by admins. Maybe it should be loaded
+    optionally -->
+
+<section class="page" id="reports-list">
+    <h2>Reports</h2>
+    <p class='state'>Loading reports</p>
+    <ul class="reports">
+    </ul>
+</section>
+
+<section class="page" id="reports-get">
+    <h2>Report <u class="report-filename">[Internal error]</u></h2>
+    <p class='state'>Loading report...</p>
+    <pre class="report-content"></pre>
+</section>
+
+<section class="page" id="reports-new">
+    not implemented
+</section>
 
 <section class="page" id="err404">
   <h2>Section not found</h2>

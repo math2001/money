@@ -41,6 +41,14 @@ export class State {
   static set useremail(value: string | null) {
     State.setItem("useremail", value);
   }
+
+  static get admin(): boolean | null {
+    return State.getItem("admin");
+  }
+
+  static set admin(value: boolean | null) {
+    State.setItem("admin", value);
+  }
 }
 
 export function qs(from: Element | Document, selector: string): HTMLElement {

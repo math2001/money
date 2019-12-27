@@ -5,6 +5,7 @@ import SignUp from "./signup.js";
 import Err404 from "./err404.js";
 import Logout from "./logout.js";
 import payments from "./payments/index.js";
+import reports from "./reports/index.js";
 
 interface Page {
   setup(): void;
@@ -26,6 +27,9 @@ class App {
     list: Page;
     addManual: Page;
     camera: Page;
+  };
+  reports: {
+    Get: Page;
   };
 
   constructor() {
@@ -78,11 +82,15 @@ class App {
       camera: new payments.camera(this.getSection("camera")),
     };
 
+    this.reports = {
+      Get: new reports.Get(this.getSection("reports-get")),
+    };
+
     if (State.useremail !== null) {
       EM.emit(EM.loggedin);
     }
 
-    history.pushState({ url: location.pathname }, "", location.pathname);
+    history.pushState({ url: location.href }, "", location.href);
   }
 
   getSection(name: string): HTMLElement {
@@ -92,11 +100,11 @@ class App {
   proxyLinks(e: MouseEvent) {
     if (e.target !== null && (e.target as Node).nodeName === "A") {
       const target = e.target as HTMLAnchorElement;
-      if (this.router((target as HTMLHyperlinkElementUtils).pathname)) {
+      if (this.router((target as HTMLHyperlinkElementUtils).href)) {
         e.preventDefault();
         e.stopImmediatePropagation();
         e.stopPropagation();
-        EM.emit(EM.browseto, target.pathname);
+        EM.emit(EM.browseto, target.href);
       }
       // otherwise, we just let the user browse to that URL like any old a tag
       // would do
@@ -116,6 +124,13 @@ class App {
   router(pathname: string): Page | null {
     // FIXME: clean up pathname
 
+    // yikes... manual url parsing
+    const index = pathname.indexOf("?");
+    if (index != -1) {
+      pathname = pathname.slice(index);
+    }
+    console.log(`'${pathname}'`);
+
     if (pathname === "/") {
       return this.home;
     } else if (pathname === "/login") {
@@ -130,13 +145,15 @@ class App {
       return this.payments.list;
     } else if (pathname == "/payments/camera") {
       return this.payments.camera;
+    } else if (pathname == "/reports/get") {
+      return this.reports.Get;
     } else {
       return null;
     }
   }
 
-  browseto(pathname: string) {
-    this.changeto(this.router(pathname) || this.err404);
+  browseto(href: string) {
+    this.changeto(this.router(href) || this.err404);
   }
 }
 
