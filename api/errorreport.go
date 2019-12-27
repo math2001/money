@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"log"
 	"net/http"
+	"os"
 	"time"
 
 	"github.com/math2001/money/db"
@@ -15,11 +16,11 @@ type ErrorReportStore struct {
 	*db.Store
 }
 
-type reportFrom int
+type reportFrom string
 
 const (
-	ReportFromUser reportFrom = iota
-	ReportFromServer
+	ReportFromUser   reportFrom = "report from user"
+	ReportFromServer reportFrom = "report from server"
 )
 
 type Report struct {
@@ -38,8 +39,44 @@ type Report struct {
 	RequestURI string
 }
 
+var ErrUnauthorized = errors.New("unauthorized")
+
+// probably should be general to api if not more
+var ErrNotFound = errors.New("not found")
+
+// Report adds the report to the reports :^)
+func (api *API) Report(report *Report) error {
+	// TODO: send an email to admin when there is a user report
+	if api.errorreports == nil {
+		log.Printf("%v", report)
+		return errors.New("error reporter hasn't been initiated. Dropped report to logs")
+	}
+	return api.errorreports.Add(report)
+}
+
+// ReportsList lists all the reports.
+func (api *API) ReportsList(user *db.User) ([]string, error) {
+	if !user.Admin {
+		return nil, ErrUnauthorized
+	}
+	filenames, err := api.errorreports.List()
+	if err != nil {
+		return nil, fmt.Errorf("getting reports list: %s", err)
+	}
+	// FIXME: maybe just load the type/description/date
+	return filenames, nil
+}
+
+// GetReport retrieves a report from the filename.
+func (api *API) GetReport(user *db.User, filename string) (*Report, error) {
+	if !user.Admin {
+		return nil, ErrUnauthorized
+	}
+	return api.errorreports.Get(filename)
+}
+
 // Add adds the report (JSON encoded) to a new file (filename = timestamp.json)
-func (ers *ErrorReportStore) add(report *Report) error {
+func (ers *ErrorReportStore) Add(report *Report) error {
 	log.Printf("new error report %q", report.Kind)
 	filename := fmt.Sprintf("%d.json", time.Now().UnixNano())
 	for i := 0; ers.Exists(filename); i++ {
@@ -49,6 +86,8 @@ func (ers *ErrorReportStore) add(report *Report) error {
 			return errors.New("couldn't generate report name (already exist)")
 		}
 	}
+
+	report.Date = time.Now()
 
 	report.RequestURI = report.Request.RequestURI
 	report.Request = nil
@@ -63,18 +102,25 @@ func (ers *ErrorReportStore) add(report *Report) error {
 	return nil
 }
 
+func (ers *ErrorReportStore) Get(filename string) (*Report, error) {
+	content, err := ers.Load(filename)
+	var patherr *os.PathError
+	if ok := errors.As(err, &patherr); ok && os.IsNotExist(patherr) {
+		return nil, ErrNotFound
+	}
+	if err != nil {
+		return nil, err
+	}
+	var report *Report
+	err = json.Unmarshal(content, &report)
+	if err != nil {
+		return nil, fmt.Errorf("unmarshalling report %q: %s", filename, err)
+	}
+	return report, nil
+}
+
 func NewErrorReportStore(root string) *ErrorReportStore {
 	return &ErrorReportStore{
 		db.NewStore(root),
 	}
-}
-
-// Report adds the report to the reports :^)
-func (api *API) Report(report *Report) error {
-	// TODO: send an email to admin when there is a user report
-	if api.errorreports == nil {
-		log.Printf("%v", report)
-		return errors.New("error reporter hasn't been initiated. Dropped report to logs")
-	}
-	return api.errorreports.add(report)
 }

@@ -84,7 +84,7 @@ func (s *Store) Login(password []byte) error {
 }
 
 func (s *Store) SignUp(password []byte) error {
-	if err := os.Mkdir(s.root, 0700); err != nil {
+	if err := os.MkdirAll(s.root, 0700); err != nil {
 		return fmt.Errorf("signing up, creating store folder: %s", err)
 	}
 
@@ -118,7 +118,7 @@ func (s Store) String() string {
 
 func NewStore(root string) *Store {
 	return &Store{
-		root:        root,
+		root:        filepath.Join(root, "data"),
 		keysmanager: keysmanager.NewKeysManager(filepath.Join(root, "secrets")),
 	}
 }

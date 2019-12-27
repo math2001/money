@@ -135,7 +135,10 @@ func New(dataroot, ocrserver string, password []byte) (*mux.Router, error) {
 	post.HandleFunc("/login", s.h(s.login))
 	post.HandleFunc("/signup", s.h(s.signup))
 	post.HandleFunc("/logout", s.h(s.logout))
-	post.HandleFunc("/reporterror", s.h(s.reporterror))
+
+	post.HandleFunc("/reports/new", s.h(s.reportsNew))
+	rapi.HandleFunc("/reports/list", s.h(s.reportsList))
+	rapi.HandleFunc("/reports/get", s.h(s.reportsGet))
 
 	post.HandleFunc("/payments/add-manual", s.h(s.addManualPayment))
 	rapi.HandleFunc("/payments/list", s.h(s.listPayments))

@@ -1,3 +1,5 @@
+- [ ] rename resp.msg to resp.body
+- [ ] when saving nil session, delete cookie, don't save empty session
 - [ ] everytime there is throw new Error in javascript, that means that I need
   to send an error report
 - [ ] when a form is submitted, inputs should be emptied
