@@ -3,6 +3,7 @@ package db
 import (
 	"errors"
 	"fmt"
+	"io/ioutil"
 	"os"
 	"path/filepath"
 
@@ -33,6 +34,19 @@ func (s *Store) Load(filename string) ([]byte, error) {
 		return nil, ErrAuthenticateFirst
 	}
 	return s.cryptor.Load(path)
+}
+
+// List returns the names of all the files
+func (s *Store) List() ([]string, error) {
+	files, err := ioutil.ReadDir(s.root)
+	if err != nil {
+		return nil, err
+	}
+	filenames := make([]string, len(files))
+	for i, file := range files {
+		filenames[i] = file.Name()
+	}
+	return filenames, nil
 }
 
 func (s *Store) Exists(filename string) bool {
