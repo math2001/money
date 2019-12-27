@@ -54,7 +54,6 @@ export default class Login {
   }
 
   postlogin(obj: any) {
-    console.info("login response", obj.kind);
     if (obj.kind === "wrong identifiers") {
       Alerts.add({
         html: "Wrong identifiers. Please try again",
@@ -63,28 +62,19 @@ export default class Login {
       });
       return;
     } else if (obj.kind === "internal error") {
-      Alerts.add({
-        kind: Alerts.ERROR,
-        host: HOST,
-        html:
-          "Oops... Server encoutered an internal error. Please try again " +
-          "or report if it keeps on occuring",
-      });
-    }
-
-    if (obj.kind !== "success") {
+      Alerts.add({ ...Alerts.serverInternalError, host: HOST });
+      console.log("response", obj);
+      return;
+    } else if (obj.kind !== "success") {
+      Alerts.add({ ...Alerts.invalidResponse, host: HOST });
       console.error("response:", obj);
       throw new Error("expected 'success' response");
     }
 
-    if (obj.email === undefined) {
+    if (obj.email === undefined || obj.goto === undefined) {
+      Alerts.add({ ...Alerts.invalidResponse, host: HOST });
       console.error("response:", obj);
       throw new Error("no email field in 'success' response");
-    }
-
-    if (obj.goto === undefined) {
-      console.error("response:", obj);
-      throw new Error("no email field in 'goto' response");
     }
 
     State.useremail = obj.email;

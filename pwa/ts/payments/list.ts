@@ -1,4 +1,6 @@
-import { EM, qs } from "../utils.js";
+import { EM, qs, Alerts } from "../utils.js";
+
+const HOST = "payments/list";
 
 export default class List {
   section: HTMLElement;
@@ -10,7 +12,7 @@ export default class List {
   }
 
   setup() {
-    this.table.innerHTML = "";
+    this.table.innerHTML = "Loading payments from server...";
     this.load();
   }
 
@@ -18,7 +20,9 @@ export default class List {
     const resp = await fetch("/api/payments/list");
     const obj = await resp.json();
     if (obj.kind !== "success") {
-      console.error(obj);
+      this.table.innerHTML = "Error occured. More details in the console.";
+      Alerts.add({ ...Alerts.invalidResponse, host: HOST });
+      console.error("response", obj);
       throw new Error("expected kind 'success'");
     }
 
@@ -32,6 +36,7 @@ export default class List {
       throw new Error("expected array of payments");
     }
 
+    this.table.innerHTML = "";
     const head = document.createElement("tr");
 
     const fields = new Set<string>();

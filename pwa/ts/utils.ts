@@ -66,6 +66,30 @@ export class Alerts {
   static WARNING = 1;
   static SUCCESS = 2;
 
+  static invalidResponse = {
+    kind: Alerts.ERROR,
+    html: `The response from the server was invalid.
+           This is <em>our</em> fault, <strong>not yours</strong>.
+           This problem has been reported. More details are
+           available in the console.`,
+  };
+
+  static badRequest = {
+    kind: Alerts.ERROR,
+    html: `The request sent was invalid.
+           This is <em>our</em> fault, <strong>not yours</strong>.
+           This problem has been reported. More details are
+           available in the console.`,
+  };
+
+  static serverInternalError = {
+    kind: Alerts.ERROR,
+    html: `An error occured on the server.
+           This is <em>our</em> fault, <strong>not yours</strong>.
+           This problem has been reported. More details are
+           available in the console.`,
+  };
+
   static init(root: HTMLElement) {
     this.alerts = [];
     this.root = root;
@@ -94,7 +118,7 @@ export class Alerts {
         return "warning";
         break;
       default:
-        throw new Error(`unkonwn alert type ${type}`);
+        throw new Error(`unkonwn alert type "${type}"`);
     }
   }
 

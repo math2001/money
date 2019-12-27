@@ -50,21 +50,15 @@ export default class SignUp {
     const obj = await resp.json();
 
     if (obj.kind === "bad request") {
-      Alerts.add({
-        kind: Alerts.ERROR,
-        html: `The request we sent was invalid. This is <em>our</em> fault, <strong>not yours</strong>. This problem has been reported. More details are available in the console`,
-        host: HOST,
-      });
+      // FIXME: send error report
+      Alerts.add({ ...Alerts.badRequest, host: HOST });
       console.error(obj);
       throw new Error("bad request (it wasn't formatted properly)");
     } else if (obj.kind === "invalid input") {
       if (obj.msg === undefined) {
+        // FIXME: send error report
+        Alerts.add({ ...Alerts.invalidResponse, host: HOST });
         console.log("response", obj);
-        Alerts.add({
-          kind: Alerts.ERROR,
-          host: HOST,
-          html: `invalid response from the server. This is <em>our</em> fault, <strong>not yours</strong>. This problem is being reported. More details available in the console.`,
-        });
         throw new Error("invalid response from the server (signup)");
       }
       Alerts.add({
@@ -75,12 +69,8 @@ export default class SignUp {
       return;
     } else if (obj.kind === "password too short") {
       if (obj.msg === undefined) {
+        Alerts.add({ ...Alerts.invalidResponse, host: HOST });
         console.error("response", obj);
-        Alerts.add({
-          kind: Alerts.ERROR,
-          host: HOST,
-          html: `invalid response from the server. This is <em>our</em> fault, <strong>not yours</strong>. This problem is being reported. More details available in the console.`,
-        });
         throw new Error(
           "invalid response from the server (signup), missing keys",
         );
@@ -93,12 +83,8 @@ export default class SignUp {
       return;
     } else if (obj.kind === "password dismatch") {
       if (obj.msg === undefined) {
+        Alerts.add({ ...Alerts.invalidResponse, host: HOST });
         console.error("response", obj);
-        Alerts.add({
-          kind: Alerts.ERROR,
-          host: HOST,
-          html: `invalid response from the server. This is <em>our</em> fault, <strong>not yours</strong>. This problem is being reported. More details available in the console.`,
-        });
         throw new Error(
           "invalid response from the server (signup), missing keys",
         );
@@ -117,21 +103,13 @@ export default class SignUp {
     } else if (obj.kind !== "success") {
       // FIXME: send minimal error report automatically, and maybe show the
       // user. Don't wanna constantly interupt the users flow
-      Alerts.add({
-        kind: Alerts.ERROR,
-        host: HOST,
-        html: `invalid response from the server. This is <em>our</em> fault, <strong>not yours</strong>. This problem is being reported. More details available in the console.`,
-      });
+      Alerts.add({ ...Alerts.invalidResponse, host: HOST });
       console.error("response:", obj);
       throw new Error("invalid response kind");
     }
 
     if (obj.email === undefined || obj.goto === undefined) {
-      Alerts.add({
-        kind: Alerts.ERROR,
-        host: HOST,
-        html: `invalid response from the server. This is <em>our</em> fault, <strong>not yours</strong>. This problem is being reported. More details available in the console.`,
-      });
+      Alerts.add({ ...Alerts.invalidResponse, host: HOST });
       console.error("response:", obj);
       throw new Error("invalid server response");
     }
