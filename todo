@@ -1,6 +1,6 @@
 - [ ] everytime there is throw new Error in javascript, that means that I need
   to send an error report
-- [ ] when manual payment is submitted, inputs should be emptied
+- [ ] when a form is submitted, inputs should be emptied
 - [ ] implement dev mode. Show a fat warning at the top, but allow for empty passwords
 - [ ] this whole concept of login/signup for the server is bad, because that
   means that when I introduce a new feature, I have to delete the data/ folder

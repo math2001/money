@@ -49,6 +49,7 @@ func (s *Server) login(r *http.Request) *resp {
 			ID:       user.ID,
 			Email:    user.Email,
 			Password: encryptedPassword,
+			Admin:    user.Admin,
 		},
 		msg: kv{
 			"kind":  "success",
@@ -192,6 +193,7 @@ func (s *Server) signup(r *http.Request) *resp {
 			ID:       user.ID,
 			Email:    user.Email,
 			Password: encryptedPassword,
+			Admin:    user.Admin,
 		},
 		msg: kv{
 			"kind":  "success",

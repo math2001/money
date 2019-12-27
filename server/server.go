@@ -25,6 +25,7 @@ type Session struct {
 	ID       int
 	Email    string
 	Password secret
+	Admin    bool
 }
 
 type secret []byte
@@ -277,7 +278,7 @@ func (s *Server) getCurrentUser(r *http.Request) (*db.User, error) {
 
 	// breaking abstraction here, but I don't know what's better...
 	// FIXME: this clearly isn't the right way
-	user := db.NewUser(session.ID, session.Email, filepath.Join(s.api.Usersdir, strconv.Itoa(session.ID)))
+	user := db.NewUser(session.ID, session.Email, session.Admin, filepath.Join(s.api.Usersdir, strconv.Itoa(session.ID)))
 
 	password, err := s.cryptor.Decrypt(session.Password)
 	if err != nil {

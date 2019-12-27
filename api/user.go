@@ -19,9 +19,10 @@ var ErrEmailAlreadyUsed = errors.New("email already used")
 var ErrWrongIdentifiers = errors.New("wrong identifiers")
 
 type user struct {
-	Email    string
-	Password []byte
-	ID       int
+	email    string
+	password []byte
+	id       int
+	admin    bool
 }
 
 // SignUp creates a new user
@@ -33,8 +34,6 @@ type user struct {
 // FIXME: this is extrememly inefficient. It reads all the user data into
 // memory just to compare emails and possibly add one entry
 func (api *API) SignUp(email, password string) (*db.User, error) {
-	log.Printf("Sign up %q", email)
-
 	// check taken entry in users file
 	f, err := os.Open(api.userslist)
 	if err != nil {
@@ -50,7 +49,7 @@ func (api *API) SignUp(email, password string) (*db.User, error) {
 
 	// check if the email has already been used
 	for _, user := range users {
-		if user.Email == email {
+		if user.email == email {
 			log.Printf("Return email already used")
 			return nil, ErrEmailAlreadyUsed
 		}
@@ -64,13 +63,19 @@ func (api *API) SignUp(email, password string) (*db.User, error) {
 
 	// add entry in users file
 	userid := len(users) + 1
-	users = append(users, user{
-		Email:    email,
-		Password: hashedpassword,
-		ID:       userid,
-	})
+	newuser := user{
+		email:    email,
+		password: hashedpassword,
+		id:       userid,
+		// the first user to sign up is automatically admin
+		admin: len(users) == 0,
+	}
+	users = append(users, newuser)
 
-	f.Close()
+	if err := f.Close(); err != nil {
+		return nil, fmt.Errorf("closing users.list file: %s", err)
+	}
+
 	f, err = os.Create(api.userslist)
 	if err != nil {
 		return nil, fmt.Errorf("signing up, recreating users list: %s", err)
@@ -82,10 +87,12 @@ func (api *API) SignUp(email, password string) (*db.User, error) {
 		return nil, fmt.Errorf("signing up, saving user to database: %s", err)
 	}
 
-	u := db.NewUser(userid, email, filepath.Join(api.Usersdir, strconv.Itoa(userid)))
+	u := db.NewUser(newuser.id, newuser.email, newuser.admin, filepath.Join(api.Usersdir, strconv.Itoa(userid)))
 	if err := u.SignUp([]byte(password)); err != nil {
 		return nil, fmt.Errorf("signing up db.User: %s", err)
 	}
+
+	log.Printf("Signed up %q", newuser.email)
 
 	return u, nil
 }
@@ -115,23 +122,23 @@ func (api *API) Login(email, password string) (*db.User, error) {
 	var match user
 	// check if the email has already been used
 	for _, user := range users {
-		if user.Email == email && bytes.Equal(user.Password, hashedpassword) {
+		if user.email == email && bytes.Equal(user.password, hashedpassword) {
 			match = user
 			break
 		}
 	}
 
 	// ie. no match
-	if match.ID == 0 {
+	if match.id == 0 {
 		return nil, ErrWrongIdentifiers
 	}
 
-	u := db.NewUser(match.ID, match.Email, filepath.Join(api.Usersdir, strconv.Itoa(match.ID)))
+	u := db.NewUser(match.id, match.email, match.admin, filepath.Join(api.Usersdir, strconv.Itoa(match.id)))
 	if err := u.Login([]byte(password)); err != nil {
 		return nil, fmt.Errorf("logging in: %s", err)
 	}
 
-	log.Printf("user is now logged in: %v", u)
+	log.Printf("Logged in %q", u.Email)
 
 	return u, nil
 }

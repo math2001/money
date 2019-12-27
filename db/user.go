@@ -7,12 +7,14 @@ type User struct {
 	*Store
 	ID    int
 	Email string
+	Admin bool
 }
 
-func NewUser(id int, email, root string) *User {
+func NewUser(id int, email string, admin bool, root string) *User {
 	return &User{
 		Email: email,
 		ID:    id,
+		Admin: admin,
 		Store: NewStore(root),
 	}
 }
