@@ -42,7 +42,18 @@ class App {
 
     this.main = qs(document, "main");
 
-    this.main.addEventListener("click", this.proxyLinks.bind(this));
+    this.main.addEventListener("click", (e: MouseEvent) => {
+      if (e.target instanceof HTMLAnchorElement) {
+        if (this.router(e.target.href)) {
+          e.preventDefault();
+          e.stopImmediatePropagation();
+          e.stopPropagation();
+          EM.emit(EM.browseto, e.target.href);
+        }
+        // otherwise, we just let the user browse to that URL like any old a tag
+        // would do
+      }
+    });
 
     EM.on(EM.browseto, (url: string) => {
       if (url === undefined) {
@@ -56,6 +67,11 @@ class App {
     });
 
     window.addEventListener("popstate", (e: PopStateEvent) => {
+      if (e.state === null) {
+        throw new Error(
+          "popstate event.state is null. Did you just reload the page?",
+        );
+      }
       console.info("browsing to", e.state.url);
       this.browseto(e.state.url);
     });
@@ -97,25 +113,11 @@ class App {
       EM.emit(EM.loggedin);
     }
 
-    history.pushState({ url: location.href }, "", location.href);
+    history.replaceState({ url: location.href }, "", location.href);
   }
 
   getSection(name: string): HTMLElement {
     return qs(document, "#" + name);
-  }
-
-  proxyLinks(e: MouseEvent) {
-    if (e.target !== null && (e.target as Node).nodeName === "A") {
-      const target = e.target as HTMLAnchorElement;
-      if (this.router((target as HTMLHyperlinkElementUtils).href)) {
-        e.preventDefault();
-        e.stopImmediatePropagation();
-        e.stopPropagation();
-        EM.emit(EM.browseto, target.href);
-      }
-      // otherwise, we just let the user browse to that URL like any old a tag
-      // would do
-    }
   }
 
   changeto(page: Page) {
@@ -128,14 +130,10 @@ class App {
     this.current.section.classList.add("active");
   }
 
-  router(pathname: string): Page | null {
+  router(URI: string): Page | null {
     // FIXME: clean up pathname
 
-    // yikes... manual url parsing
-    const index = pathname.indexOf("?");
-    if (index != -1) {
-      pathname = pathname.slice(index);
-    }
+    const pathname = new URL(URI, location.href).pathname;
 
     if (pathname === "/") {
       return this.home;
@@ -156,6 +154,7 @@ class App {
     } else if (pathname == "/reports/list") {
       return this.reports.List;
     } else {
+      console.error("unknown page: ", pathname);
       return null;
     }
   }
