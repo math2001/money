@@ -14,8 +14,9 @@ export default class {
   }
 
   async setup() {
-    if (State.admin !== true) {
+    if (State.user === null || State.user.admin !== true) {
       this.state.innerHTML = "You are not authorized to view this page";
+      return;
     }
 
     let resp;

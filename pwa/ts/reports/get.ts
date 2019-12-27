@@ -16,8 +16,10 @@ export default class {
   }
 
   async setup() {
-    if (State.admin !== true) {
+    if (State.user === null || State.user.admin !== true) {
       this.state.innerHTML = "You are not authorized to view this page";
+      this.filename.textContent = "";
+      return;
     }
     const params = new URLSearchParams(location.search);
     const filename = params.get("filename");
@@ -32,7 +34,6 @@ export default class {
     this.filename.href = "";
 
     const url = new URL("/api/reports/get", location.href);
-    console.log(url);
     url.search = params.toString();
 
     const resp = await fetch(url.toString());

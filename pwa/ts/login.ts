@@ -63,7 +63,7 @@ export default class Login {
       return;
     } else if (obj.kind === "internal error") {
       Alerts.add({ ...Alerts.serverInternalError, host: HOST });
-      console.log("response", obj);
+      console.error("response", obj);
       return;
     } else if (obj.kind !== "success") {
       Alerts.add({ ...Alerts.invalidResponse, host: HOST });
@@ -71,13 +71,21 @@ export default class Login {
       throw new Error("expected 'success' response");
     }
 
-    if (obj.email === undefined || obj.goto === undefined) {
+    if (
+      obj.email === undefined ||
+      obj.admin === undefined ||
+      obj.goto === undefined
+    ) {
       Alerts.add({ ...Alerts.invalidResponse, host: HOST });
       console.error("response:", obj);
-      throw new Error("no email field in 'success' response");
+      throw new Error("no email/admin/goto field in response");
     }
 
-    State.useremail = obj.email;
+    State.user = {
+      email: obj.email,
+      admin: obj.admin,
+    };
+
     EM.emit(EM.loggedin);
     EM.emit(EM.browseto, obj.goto);
   }

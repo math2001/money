@@ -55,6 +55,7 @@ func (s *Server) login(r *http.Request) *resp {
 			"kind":  "success",
 			"goto":  "/",
 			"email": user.Email,
+			"admin": user.Admin,
 		},
 	}
 }
@@ -198,7 +199,8 @@ func (s *Server) signup(r *http.Request) *resp {
 		msg: kv{
 			"kind":  "success",
 			"goto":  "/",
-			"email": email,
+			"email": user.Email,
+			"admin": user.Admin,
 		},
 	}
 }

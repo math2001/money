@@ -68,7 +68,6 @@ export default class List {
         } else if (typeof value === "undefined") {
           cell.textContent = "";
         } else {
-          console.log(field, value);
           throw new Error(`unsupported field type ${field} (value: ${value})`);
         }
 

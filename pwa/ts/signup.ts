@@ -108,13 +108,21 @@ export default class SignUp {
       throw new Error("invalid response kind");
     }
 
-    if (obj.email === undefined || obj.goto === undefined) {
+    if (
+      obj.email === undefined ||
+      obj.admin === undefined ||
+      obj.goto === undefined
+    ) {
       Alerts.add({ ...Alerts.invalidResponse, host: HOST });
       console.error("response:", obj);
       throw new Error("invalid server response");
     }
 
-    State.useremail = obj.email;
+    State.user = {
+      email: obj.email,
+      admin: obj.admin,
+    };
+
     EM.emit(EM.loggedin);
     EM.emit(EM.browseto, obj.goto);
   }

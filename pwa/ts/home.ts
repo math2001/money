@@ -12,7 +12,7 @@ export default class Home {
   }
 
   setup() {
-    if (State.useremail !== null) {
+    if (State.user && State.user.email !== null) {
       this.forvisitor.style.display = "none";
       this.foruser.style.display = "block";
     } else {

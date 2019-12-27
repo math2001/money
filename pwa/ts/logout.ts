@@ -29,7 +29,7 @@ export default class Logout {
     await Promise.resolve();
 
     this.logoutState.innerHTML = "Checking logged state...";
-    if (State.useremail == null) {
+    if (State.user === null) {
       // FIXME: better error communication, redirect to error page
       alert("logging out of nothing (you are not logged in)");
       EM.emit(EM.browseto, "/");
@@ -40,7 +40,7 @@ export default class Logout {
 
     // FIXME: handle offline
     const params: { [key: string]: string } = {
-      email: State.useremail
+      email: State.user.email,
     };
 
     const formData = new FormData();
@@ -50,14 +50,15 @@ export default class Logout {
 
     const resp = await fetch("/api/logout", {
       method: "post",
-      body: formData
+      body: formData,
     });
 
     const obj = await resp.json();
 
     // remove user info as soon as possible. If the user is trying to manually
     // logout, then it's probably because he's already getting errors
-    State.useremail = null;
+    State.user = null;
+    EM.emit(EM.loggedout);
 
     // FIXME: better error communication
     if (obj.kind === "error" && obj.id === "no user") {
@@ -71,9 +72,6 @@ export default class Logout {
       console.error(obj);
       throw new Error("expected 'goto' key");
     }
-
-    EM.emit(EM.loggedout);
-    EM.emit(EM.browseto, obj.goto);
   }
 
   teardown() {

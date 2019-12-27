@@ -61,7 +61,10 @@ class App {
     });
 
     EM.on(EM.loggedin, () => {
-      const useremail = State.useremail; // load of the localstorage once
+      if (State.user === null) {
+        throw new Error("EM.loggedin event triggered, but State.user is null");
+      }
+      const useremail = State.user.email; // load from the localstorage once
       for (let node of document.querySelectorAll('[fill-with="useremail"]')) {
         node.textContent = useremail;
       }
@@ -90,7 +93,7 @@ class App {
       List: new ReportsList(this.getSection("reports-list")),
     };
 
-    if (State.useremail !== null) {
+    if (State.user !== null) {
       EM.emit(EM.loggedin);
     }
 
@@ -133,7 +136,6 @@ class App {
     if (index != -1) {
       pathname = pathname.slice(index);
     }
-    console.log(`'${pathname}'`);
 
     if (pathname === "/") {
       return this.home;

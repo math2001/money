@@ -19,6 +19,11 @@ export class EM {
   }
 }
 
+interface User {
+  email: string;
+  admin: boolean;
+}
+
 // state just provides the keys for the local storage (to get compile time
 // checking). For eg. localStorage.setItem(State.useremail, JSON.stringify("<useremail>"))
 // (items stored in the local storage should always be json encoded)
@@ -34,20 +39,12 @@ export class State {
     return JSON.parse(item);
   }
 
-  static get useremail(): string | null {
-    return State.getItem("useremail");
+  static get user(): User | null {
+    return State.getItem("user");
   }
 
-  static set useremail(value: string | null) {
-    State.setItem("useremail", value);
-  }
-
-  static get admin(): boolean | null {
-    return State.getItem("admin");
-  }
-
-  static set admin(value: boolean | null) {
-    State.setItem("admin", value);
+  static set user(value: User | null) {
+    State.setItem("user", value);
   }
 }
 
