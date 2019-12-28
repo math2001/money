@@ -15,7 +15,7 @@ func (s *Server) addManualPayment(r *http.Request) *resp {
 		log.Printf("add payments: no current user")
 		return &resp{
 			code: http.StatusNotAcceptable,
-			msg: kv{
+			body: kv{
 				"kind":    "require log in",
 				"msg":     "please authenticate first",
 				"details": "authentication cookie found, but user forgotten",
@@ -25,7 +25,7 @@ func (s *Server) addManualPayment(r *http.Request) *resp {
 		log.Printf("[err] loading session: %s", err)
 		return &resp{
 			code: http.StatusNotAcceptable,
-			msg: kv{
+			body: kv{
 				"kind": "not acceptable",
 				"msg":  "couldn't load session from cookie",
 			},
@@ -38,7 +38,7 @@ func (s *Server) addManualPayment(r *http.Request) *resp {
 		log.Printf("invalid payment: %s", err)
 		return &resp{
 			code: http.StatusNotAcceptable,
-			msg: kv{
+			body: kv{
 				"kind": "error",
 				"id":   "invalid payment",
 				"msg":  err.Error(),
@@ -49,7 +49,7 @@ func (s *Server) addManualPayment(r *http.Request) *resp {
 		log.Printf("add payments: api.addpayment: %s", err)
 		return &resp{
 			code: http.StatusInternalServerError,
-			msg: kv{
+			body: kv{
 				"kind": "internal error",
 				"msg":  "adding payment failed",
 			},
@@ -57,7 +57,7 @@ func (s *Server) addManualPayment(r *http.Request) *resp {
 	}
 	return &resp{
 		code: http.StatusOK,
-		msg: kv{
+		body: kv{
 			"kind": "success",
 			"goto": "/", // FIXME: where should it go
 		},
@@ -71,7 +71,7 @@ func (s *Server) listPayments(r *http.Request) *resp {
 		log.Printf("add payments: no current user")
 		return &resp{
 			code: http.StatusNotAcceptable,
-			msg: kv{
+			body: kv{
 				"kind":    "require log in",
 				"msg":     "please authenticate first",
 				"details": "authentication cookie found, but user forgotten",
@@ -81,7 +81,7 @@ func (s *Server) listPayments(r *http.Request) *resp {
 		log.Printf("[err] loading session: %s", err)
 		return &resp{
 			code: http.StatusNotAcceptable,
-			msg: kv{
+			body: kv{
 				"kind": "not acceptable",
 				"msg":  "couldn't load session from cookie",
 			},
@@ -93,7 +93,7 @@ func (s *Server) listPayments(r *http.Request) *resp {
 		log.Printf("[err] listing payments: %s", err)
 		return &resp{
 			code: http.StatusInternalServerError,
-			msg: kv{
+			body: kv{
 				"kind": "internal error",
 			},
 		}
@@ -101,7 +101,7 @@ func (s *Server) listPayments(r *http.Request) *resp {
 
 	return &resp{
 		code: http.StatusOK,
-		msg: kv{
+		body: kv{
 			"kind":     "success",
 			"payments": payments,
 		},
@@ -115,7 +115,7 @@ func (s *Server) scan(r *http.Request) *resp {
 		log.Printf("scan: no current user")
 		return &resp{
 			code: http.StatusNotAcceptable,
-			msg: kv{
+			body: kv{
 				"kind":    "require log in",
 				"msg":     "please authenticate first",
 				"details": "authentication cookie found, but user forgotten",
@@ -125,7 +125,7 @@ func (s *Server) scan(r *http.Request) *resp {
 		log.Printf("[err] scan: loading session: %s", err)
 		return &resp{
 			code: http.StatusNotAcceptable,
-			msg: kv{
+			body: kv{
 				"kind": "not acceptable",
 				"msg":  "couldn't load session from cookie",
 			},
@@ -137,7 +137,7 @@ func (s *Server) scan(r *http.Request) *resp {
 		log.Printf("[err] scan: loading file from post requets: %s", err)
 		return &resp{
 			code: http.StatusBadRequest,
-			msg: kv{
+			body: kv{
 				"kind": "bad request",
 				"msg":  "error occurred when uploading file",
 			},
@@ -152,7 +152,7 @@ func (s *Server) scan(r *http.Request) *resp {
 		log.Printf("[err] png.Decoding file")
 		return &resp{
 			code: http.StatusExpectationFailed,
-			msg: kv{
+			body: kv{
 				"kind":  "expectation failed",
 				"msg":   "couldn't PNG decode file",
 				"FIXME": "support multiple file format",
@@ -165,7 +165,7 @@ func (s *Server) scan(r *http.Request) *resp {
 		log.Printf("[err] listing payments: %s", err)
 		return &resp{
 			code: http.StatusInternalServerError,
-			msg: kv{
+			body: kv{
 				"kind": "internal error",
 				"id":   "scan job failed",
 			},
@@ -174,7 +174,7 @@ func (s *Server) scan(r *http.Request) *resp {
 
 	return &resp{
 		code: http.StatusOK,
-		msg: kv{
+		body: kv{
 			"kind":    "success",
 			"payment": payment,
 		},

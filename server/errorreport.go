@@ -49,7 +49,7 @@ func (s *Server) reportsNew(r *http.Request) *resp {
 		log.Printf("[err] api.ErrorReport: %s", err)
 		return &resp{
 			code: http.StatusInternalServerError,
-			msg: kv{
+			body: kv{
 				"kind": "internal error",
 			},
 		}
@@ -63,7 +63,7 @@ func (s *Server) reportsList(r *http.Request) *resp {
 		log.Printf("listing reports: no current user")
 		return &resp{
 			code: http.StatusUnauthorized,
-			msg: kv{
+			body: kv{
 				"kind": "unauthorized",
 				"msg":  "please authenticate first",
 			},
@@ -72,7 +72,7 @@ func (s *Server) reportsList(r *http.Request) *resp {
 		log.Printf("[err] loading session: %s", err)
 		return &resp{
 			code: http.StatusNotAcceptable,
-			msg: kv{
+			body: kv{
 				"kind": "not acceptable",
 				"msg":  "couldn't load session from cookie",
 			},
@@ -84,7 +84,7 @@ func (s *Server) reportsList(r *http.Request) *resp {
 	if errors.Is(err, api.ErrUnauthorized) {
 		return &resp{
 			code: http.StatusUnauthorized,
-			msg: kv{
+			body: kv{
 				"kind": "unauthorized",
 				"msg":  "you are not authorized to view this page",
 			},
@@ -94,7 +94,7 @@ func (s *Server) reportsList(r *http.Request) *resp {
 		log.Printf("[err] internal error: %s", err)
 		return &resp{
 			code: http.StatusInternalServerError,
-			msg: kv{
+			body: kv{
 				"kind": "internal error",
 			},
 		}
@@ -102,7 +102,7 @@ func (s *Server) reportsList(r *http.Request) *resp {
 
 	return &resp{
 		code: http.StatusOK,
-		msg: kv{
+		body: kv{
 			"kind":    "success",
 			"reports": reports,
 		},
@@ -115,7 +115,7 @@ func (s *Server) reportsGet(r *http.Request) *resp {
 		log.Printf("getting reports: no current user")
 		return &resp{
 			code: http.StatusNotAcceptable,
-			msg: kv{
+			body: kv{
 				"kind": "unauthorized",
 				"msg":  "please authenticate first",
 			},
@@ -124,7 +124,7 @@ func (s *Server) reportsGet(r *http.Request) *resp {
 		log.Printf("[err] loading session: %s", err)
 		return &resp{
 			code: http.StatusNotAcceptable,
-			msg: kv{
+			body: kv{
 				"kind": "not acceptable",
 				"msg":  "couldn't load session from cookie",
 			},
@@ -135,7 +135,7 @@ func (s *Server) reportsGet(r *http.Request) *resp {
 	if len(filenames) != 1 {
 		return &resp{
 			code: http.StatusBadRequest,
-			msg: kv{
+			body: kv{
 				"kind": "bad request",
 				"msg":  "requires one 'filename' field",
 			},
@@ -147,7 +147,7 @@ func (s *Server) reportsGet(r *http.Request) *resp {
 	if errors.Is(err, api.ErrUnauthorized) {
 		return &resp{
 			code: http.StatusUnauthorized,
-			msg: kv{
+			body: kv{
 				"kind": "unauthorized",
 				"msg":  "you are not authorized to view this page",
 			},
@@ -155,7 +155,7 @@ func (s *Server) reportsGet(r *http.Request) *resp {
 	} else if errors.Is(err, api.ErrNotFound) {
 		return &resp{
 			code: http.StatusNotFound,
-			msg: kv{
+			body: kv{
 				"kind": "not found",
 				"msg":  fmt.Sprintf("report %q not found", filenames[0]),
 			},
@@ -165,7 +165,7 @@ func (s *Server) reportsGet(r *http.Request) *resp {
 		log.Printf("[err] internal error: %s", err)
 		return &resp{
 			code: http.StatusInternalServerError,
-			msg: kv{
+			body: kv{
 				"kind": "internal error",
 			},
 		}
@@ -173,7 +173,7 @@ func (s *Server) reportsGet(r *http.Request) *resp {
 
 	return &resp{
 		code: http.StatusOK,
-		msg: kv{
+		body: kv{
 			"kind":   "success",
 			"report": report,
 		},

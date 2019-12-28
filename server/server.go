@@ -44,7 +44,7 @@ type kv map[string]interface{}
 type resp struct {
 	code int
 	// FIXME: rename to body
-	msg     kv
+	body     kv
 	session *Session
 	err     error
 }
@@ -120,7 +120,7 @@ func New(dataroot, ocrserver string, password []byte) (*mux.Router, error) {
 	rapi.HandleFunc("/", s.h(func(r *http.Request) *resp {
 		return &resp{
 			code: http.StatusOK,
-			msg: kv{
+			body: kv{
 				"kind":        "not implemented",
 				"description": "it will list all the different endpoints",
 			},
@@ -149,7 +149,7 @@ func New(dataroot, ocrserver string, password []byte) (*mux.Router, error) {
 	rapi.PathPrefix("/").HandlerFunc(s.h(func(r *http.Request) *resp {
 		return &resp{
 			code: http.StatusBadRequest,
-			msg: kv{
+			body: kv{
 				"kind": "bad request",
 				"msg":  "request didn't match any known route",
 				"help": []string{
@@ -200,19 +200,19 @@ func (s *Server) h(h func(*http.Request) *resp) http.HandlerFunc {
 		resp := h(r)
 		w.Header().Set("Content-Type", "application/json; charset=utf-8")
 		encoder := json.NewEncoder(w)
-		if resp.msg == nil {
+		if resp.body == nil {
 			resp.code = http.StatusInternalServerError
 			// FIXME: implement warning system
 			log.Printf("[err] Server handler %s: resp.msg == nil", handlerName)
-			resp.msg = kv{
+			resp.body = kv{
 				"kind": "internal error",
 				"msg":  "no msg from handler",
 			}
-		} else if _, ok := resp.msg["kind"]; !ok {
+		} else if _, ok := resp.body["kind"]; !ok {
 			resp.code = http.StatusInternalServerError
 			// FIXME: implement warning system
 			log.Printf("[err] Handler %s: no \"kind\" key in resp.msg", handlerName)
-			resp.msg = kv{
+			resp.body = kv{
 				"kind": "internal error",
 				"msg":  "Handler response was invalid",
 			}
@@ -221,7 +221,7 @@ func (s *Server) h(h func(*http.Request) *resp) http.HandlerFunc {
 				if err := s.sessions.Save(w, resp.session); err != nil {
 					log.Printf("[err] saving session: %s", err)
 					resp.code = http.StatusInternalServerError
-					resp.msg = kv{
+					resp.body = kv{
 						"kind": "internal error",
 						"msg":  "errored saving session cookie",
 					}
@@ -231,9 +231,9 @@ func (s *Server) h(h func(*http.Request) *resp) http.HandlerFunc {
 			}
 		}
 
-		if resp.msg["kind"] == "internal error" {
-			if _, ok := resp.msg["msg"]; ok {
-				log.Printf("!! warning !! no details should be given about internal errors. %v", resp.msg)
+		if resp.body["kind"] == "internal error" {
+			if _, ok := resp.body["msg"]; ok {
+				log.Printf("!! warning !! no details should be given about internal errors. %v", resp.body)
 			}
 			user, err := s.getCurrentUser(r)
 			if err != nil && !errors.Is(err, ErrNoCurrentUser) {
@@ -281,7 +281,7 @@ func (s *Server) h(h func(*http.Request) *resp) http.HandlerFunc {
 			resp.err = nil
 		}
 		w.WriteHeader(resp.code)
-		if err := encoder.Encode(resp.msg); err != nil {
+		if err := encoder.Encode(resp.body); err != nil {
 			log.Printf("[err] encoding json object in %s: %s", handlerName, err)
 		}
 	}

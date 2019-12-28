@@ -1,4 +1,3 @@
-- [ ] rename resp.msg to resp.body
 - [ ] when saving nil session, delete cookie, don't save empty session
 - [ ] everytime there is throw new Error in javascript, that means that I need
   to send an error report
@@ -24,3 +23,4 @@
 - [x] validate password
 - [x] fix the test!!
 - [x] salt should be in it's own file, and it should be automatically generated if it doesn't exists
+- [x] rename resp.msg to resp.body

@@ -18,7 +18,7 @@ func (s *Server) login(r *http.Request) *resp {
 	if errors.Is(err, api.ErrWrongIdentifiers) {
 		return &resp{
 			code: http.StatusOK, // FIXME: better error code?
-			msg: kv{
+			body: kv{
 				"kind": "wrong identifiers",
 			},
 		}
@@ -26,7 +26,7 @@ func (s *Server) login(r *http.Request) *resp {
 		log.Printf("[err] logging in: %s", err)
 		return &resp{
 			code: http.StatusInternalServerError,
-			msg: kv{
+			body: kv{
 				"kind": "internal error",
 			},
 		}
@@ -37,7 +37,7 @@ func (s *Server) login(r *http.Request) *resp {
 		log.Printf("[err] encrypting password: %s", err)
 		return &resp{
 			code: http.StatusInternalServerError,
-			msg: kv{
+			body: kv{
 				"kind": "internal error",
 			},
 		}
@@ -51,7 +51,7 @@ func (s *Server) login(r *http.Request) *resp {
 			Password: encryptedPassword,
 			Admin:    user.Admin,
 		},
-		msg: kv{
+		body: kv{
 			"kind":  "success",
 			"goto":  "/",
 			"email": user.Email,
@@ -64,7 +64,7 @@ func (s *Server) signup(r *http.Request) *resp {
 	if r.Method != http.MethodPost {
 		return &resp{
 			code: http.StatusMethodNotAllowed,
-			msg: kv{
+			body: kv{
 				"kind":   "method not allowed",
 				"method": r.Method,
 			},
@@ -84,7 +84,7 @@ func (s *Server) signup(r *http.Request) *resp {
 		log.Printf("!! warning !! missing fields %t %t %t", eok, pok, cok)
 		return &resp{
 			code: http.StatusBadRequest,
-			msg: kv{
+			body: kv{
 				"kind": "bad request",
 				"msg":  "missing fields",
 				"help": []string{
@@ -98,7 +98,7 @@ func (s *Server) signup(r *http.Request) *resp {
 		log.Printf("!! warning !! duplicate fields %d %d %d", len(emails), len(passwords), len(confirms))
 		return &resp{
 			code: http.StatusBadRequest,
-			msg: kv{
+			body: kv{
 				"kind": "bad request",
 				"msg":  "duplicate fields",
 				"help": []string{
@@ -114,7 +114,7 @@ func (s *Server) signup(r *http.Request) *resp {
 	if errors.Is(err, checkmail.ErrBadFormat) {
 		return &resp{
 			code: http.StatusExpectationFailed,
-			msg: kv{
+			body: kv{
 				"kind": "invalid input",
 				"msg":  fmt.Sprintf("Invalid email: %q didn't match our required format", email),
 			},
@@ -123,7 +123,7 @@ func (s *Server) signup(r *http.Request) *resp {
 		log.Printf("!! warning !! unknown error from checkmail: %s", err)
 		return &resp{
 			code: http.StatusExpectationFailed,
-			msg: kv{
+			body: kv{
 				"kind": "invalid input",
 				"msg":  "invalid email: unkown error",
 			},
@@ -133,7 +133,7 @@ func (s *Server) signup(r *http.Request) *resp {
 	if password != confirm {
 		return &resp{
 			code: http.StatusExpectationFailed,
-			msg: kv{
+			body: kv{
 				"kind": "password dismatch",
 				"msg":  "Your passwords don't match. Please try again.",
 			},
@@ -143,7 +143,7 @@ func (s *Server) signup(r *http.Request) *resp {
 	if len(password) < 8 {
 		return &resp{
 			code: http.StatusExpectationFailed,
-			msg: kv{
+			body: kv{
 				"kind": "password too short",
 				"msg":  "Your password is too short. It should be at least 8 characters.",
 			},
@@ -156,7 +156,7 @@ func (s *Server) signup(r *http.Request) *resp {
 	if errors.Is(err, api.ErrEmailAlreadyUsed) {
 		return &resp{
 			code: http.StatusNotAcceptable,
-			msg: kv{
+			body: kv{
 				"kind": "email already used",
 				"msg":  "This emails has already been used. Did you forget your password? If yes, you should contact us",
 				"FIXME": []string{
@@ -168,7 +168,7 @@ func (s *Server) signup(r *http.Request) *resp {
 		log.Printf("[err] signing up: %s", err)
 		return &resp{
 			code: http.StatusInternalServerError,
-			msg: kv{
+			body: kv{
 				"kind": "internal error",
 			},
 		}
@@ -179,7 +179,7 @@ func (s *Server) signup(r *http.Request) *resp {
 		log.Printf("[err] encrypting password: %s", err)
 		return &resp{
 			code: http.StatusInternalServerError,
-			msg: kv{
+			body: kv{
 				"kind": "internal error",
 			},
 		}
@@ -196,7 +196,7 @@ func (s *Server) signup(r *http.Request) *resp {
 			Password: encryptedPassword,
 			Admin:    user.Admin,
 		},
-		msg: kv{
+		body: kv{
 			"kind":  "success",
 			"goto":  "/",
 			"email": user.Email,
@@ -212,7 +212,7 @@ func (s *Server) logout(r *http.Request) *resp {
 	if _, ok := r.PostForm["email"]; !ok {
 		return &resp{
 			code: http.StatusBadRequest,
-			msg: kv{
+			body: kv{
 				"kind": "bad request",
 				"msg":  "expected 'email' field",
 			},
@@ -229,7 +229,7 @@ func (s *Server) logout(r *http.Request) *resp {
 	if errors.Is(err, ErrNoCurrentUser) {
 		return &resp{
 			code: http.StatusNotAcceptable,
-			msg: kv{
+			body: kv{
 				"kind": "not acceptable",
 				"msg":  "no user is logged in",
 			},
@@ -239,7 +239,7 @@ func (s *Server) logout(r *http.Request) *resp {
 		log.Printf("[err] loading session: %s", err)
 		return &resp{
 			code: http.StatusNotAcceptable,
-			msg: kv{
+			body: kv{
 				"kind": "not acceptable",
 				"msg":  "couldn't load session from cookie",
 			},
@@ -259,7 +259,7 @@ func (s *Server) logout(r *http.Request) *resp {
 		log.Printf("logout handler: api.Logout: %s", err)
 		return &resp{
 			code: http.StatusInternalServerError,
-			msg: kv{
+			body: kv{
 				"kind": "internal error",
 			},
 			session: &NilSession,
@@ -268,7 +268,7 @@ func (s *Server) logout(r *http.Request) *resp {
 
 	return &resp{
 		code: http.StatusOK,
-		msg: kv{
+		body: kv{
 			"kind": "success",
 			"goto": "/",
 		},
