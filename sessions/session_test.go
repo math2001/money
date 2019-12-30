@@ -7,15 +7,19 @@ import (
 	"errors"
 	"fmt"
 	"io"
+	"log"
 	"math/rand"
 	"net/http"
+	"net/http/cookiejar"
 	"net/http/httptest"
+	"net/url"
 	"reflect"
 	"strings"
 	"testing"
 	"time"
 
 	"github.com/math2001/money/sessions"
+	"golang.org/x/net/publicsuffix"
 )
 
 const cookieName = "session"
@@ -71,6 +75,61 @@ func TestNormal(t *testing.T) {
 	}
 	if !reflect.DeepEqual(expected, actual) {
 		t.Fatalf("original != loaded: \n%v\n%v", actual, expected)
+	}
+}
+
+func TestRemove(t *testing.T) {
+	requestNumber := 0
+
+	s := NewS(t)
+
+	message := map[string]interface{} {
+		"id": 3,
+	}
+
+	ts := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		requestNumber += 1
+		if requestNumber == 1 {
+			s.Save(w, message)
+		} else if requestNumber == 2 {
+			s.Remove(w)
+		} else {
+			t.Fatalf("assert not reached (request number too high)")
+		}
+	}))
+	defer ts.Close()
+
+	u, err := url.Parse(ts.URL)
+	if err != nil {
+		log.Fatal(err)
+	}
+
+	// All users of cookiejar should import "golang.org/x/net/publicsuffix"
+	jar, err := cookiejar.New(&cookiejar.Options{PublicSuffixList: publicsuffix.List})
+	if err != nil {
+		log.Fatal(err)
+	}
+
+	client := &http.Client{
+		Jar: jar,
+	}
+
+	if _, err = client.Get(u.String()); err != nil {
+		log.Fatal(err)
+	}
+
+	if len(jar.Cookies(u)) != 1 {
+		t.Logf("cookies: %v", jar.Cookies(u))
+		t.Errorf("got %d cookies, expected 1 cookie (the session cookie)", len(jar.Cookies(u)))
+	}
+
+	if _, err = client.Get(u.String()); err != nil {
+		log.Fatal(err)
+	}
+
+	if len(jar.Cookies(u)) != 0 {
+		t.Logf("cookies: %v", jar.Cookies(u))
+		t.Errorf("got %d cookies, expected no cookie", len(jar.Cookies(u)))
 	}
 }
 

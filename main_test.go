@@ -14,6 +14,7 @@ import (
 
 // makes sure that the legal request do work
 func TestLegalMethods(t *testing.T) {
+
 	dataroot, err := ioutil.TempDir("", "money-test-"+t.Name())
 	if err != nil {
 		t.Fatalf("creating temporary directory: %s", err)
@@ -33,7 +34,7 @@ func TestLegalMethods(t *testing.T) {
 	var logs strings.Builder
 	logs.WriteString("Logs:\n")
 	log.SetOutput(&logs)
-	handler, err := server.New(dataroot, []byte(""))
+	handler, err := server.New(dataroot, "0.0.0.0", []byte(""))
 
 	type headers map[string]string
 	type resp struct {

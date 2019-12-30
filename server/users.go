@@ -233,7 +233,7 @@ func (s *Server) logout(r *http.Request) *resp {
 				"kind": "not acceptable",
 				"msg":  "no user is logged in",
 			},
-			session: &NilSession,
+			session: NilSession,
 		}
 	} else if err != nil {
 		log.Printf("[err] loading session: %s", err)
@@ -243,7 +243,7 @@ func (s *Server) logout(r *http.Request) *resp {
 				"kind": "not acceptable",
 				"msg":  "couldn't load session from cookie",
 			},
-			session: &NilSession,
+			session: NilSession,
 		}
 	}
 
@@ -262,7 +262,7 @@ func (s *Server) logout(r *http.Request) *resp {
 			body: kv{
 				"kind": "internal error",
 			},
-			session: &NilSession,
+			session: NilSession,
 		}
 	}
 
@@ -272,6 +272,6 @@ func (s *Server) logout(r *http.Request) *resp {
 			"kind": "success",
 			"goto": "/",
 		},
-		session: &NilSession, // remove the session cookie
+		session: NilSession, // remove the session cookie
 	}
 }

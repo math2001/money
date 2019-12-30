@@ -31,4 +31,5 @@ money: $(shell fd --extension go)
 money-tools: tools/*.go
 	go build -o money-tools ./tools
 
-
+format:
+	@goimports -w .

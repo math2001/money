@@ -12,6 +12,7 @@ import (
 	"runtime"
 	"strconv"
 	"strings"
+	"bytes"
 
 	"github.com/gorilla/mux"
 	"github.com/math2001/money/api"
@@ -28,13 +29,17 @@ type Session struct {
 	Admin    bool
 }
 
+func (a *Session) Equal(b *Session) bool {
+	return a.ID == b.ID && a.Email == b.Email && bytes.Equal(a.Password, b.Password) && a.Admin == b.Admin
+}
+
 type secret []byte
 
 func (secret) String() string {
 	return "[secret]"
 }
 
-var NilSession = Session{}
+var NilSession = &Session{}
 
 var ErrNoCurrentUser = errors.New("no current user")
 
@@ -44,7 +49,7 @@ type kv map[string]interface{}
 type resp struct {
 	code int
 	// FIXME: rename to body
-	body     kv
+	body    kv
 	session *Session
 	err     error
 }
@@ -217,7 +222,9 @@ func (s *Server) h(h func(*http.Request) *resp) http.HandlerFunc {
 				"msg":  "Handler response was invalid",
 			}
 		} else {
-			if resp.session != nil {
+			if resp.session.Equal(NilSession) {
+				s.sessions.Remove(w)
+			} else if resp.session != nil {
 				if err := s.sessions.Save(w, resp.session); err != nil {
 					log.Printf("[err] saving session: %s", err)
 					resp.code = http.StatusInternalServerError
@@ -226,32 +233,42 @@ func (s *Server) h(h func(*http.Request) *resp) http.HandlerFunc {
 						"msg":  "errored saving session cookie",
 					}
 				}
-			} else if resp.session == &NilSession {
-				s.sessions.Remove(w)
 			}
 		}
 
-		if resp.body["kind"] == "internal error" {
-			if _, ok := resp.body["msg"]; ok {
-				log.Printf("!! warning !! no details should be given about internal errors. %v", resp.body)
-			}
+		if resp.body["kind"] == "internal error" || resp.err != nil {
 			user, err := s.getCurrentUser(r)
 			if err != nil && !errors.Is(err, ErrNoCurrentUser) {
 				log.Printf("!! warning !! getting current user for error report: %s", err)
 				// keep going, we will just have no user for that error report
 			}
+			if _, ok := resp.body["msg"]; ok && resp.body["kind"] == "internal error" {
+				log.Printf("!! warning !! no details should be given about internal errors. %v", resp.body)
+			}
+
+			var description string
+			if resp.err == nil {
+				description = "handler responded with 'internal error' but didn't report anything"
+			} else {
+				description = "internal error failed due to error"
+			}
+
 			err = s.api.Report(&api.Report{
 				Kind:           "internal error",
-				Description:    "handler responded with 'internal error' but didn't report anything",
+				Description:    description,
 				From:           api.ReportFromServer,
 				Request:        r,
 				User:           user,
 				ErrGettingUser: err,
 				Err:            resp.err,
 			})
+
 			if err != nil {
 				log.Printf("[err] reporting error: %s", err)
 			}
+		}
+
+		if resp.body["kind"] == "internal error" {
 			resp.err = nil
 		}
 

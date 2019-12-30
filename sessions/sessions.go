@@ -172,6 +172,6 @@ func (s *S) Remove(w http.ResponseWriter) {
 		Name:  s.cookieName,
 		Value: "",
 
-		MaxAge: 0,
+		MaxAge: -1,
 	})
 }

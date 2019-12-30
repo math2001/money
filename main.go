@@ -15,6 +15,7 @@ func main() {
 
 	// FIXME: ask for password from stdin
 	password := []byte("")
+
 	// FIXME: make this configurable
 	ocrserver := "localhost:31563" // int("ocr", 10 + 26) -> 31563
 
