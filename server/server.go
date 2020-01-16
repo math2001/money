@@ -1,6 +1,7 @@
 package server
 
 import (
+	"bytes"
 	"encoding/json"
 	"errors"
 	"fmt"
@@ -12,7 +13,6 @@ import (
 	"runtime"
 	"strconv"
 	"strings"
-	"bytes"
 
 	"github.com/gorilla/mux"
 	"github.com/math2001/money/api"

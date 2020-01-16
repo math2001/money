@@ -83,7 +83,7 @@ func TestRemove(t *testing.T) {
 
 	s := NewS(t)
 
-	message := map[string]interface{} {
+	message := map[string]interface{}{
 		"id": 3,
 	}
 
