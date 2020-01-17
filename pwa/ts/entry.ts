@@ -4,6 +4,7 @@ import Login from "./login.js";
 import SignUp from "./signup.js";
 import Err404 from "./err404.js";
 import Logout from "./logout.js";
+import Calendar from "./calendar/calendar.js";
 import payments from "./payments/index.js";
 
 import ReportsGet from "./reports/get.js";
@@ -34,6 +35,8 @@ class App {
     Get: Page;
     List: Page;
   };
+
+  calendar: Page;
 
   constructor() {
     this.current = null;
@@ -98,6 +101,8 @@ class App {
     this.signup = new SignUp(this.getSection("signup"));
     this.logout = new Logout(this.getSection("logout"));
 
+    this.calendar = new Calendar(this.getSection("calendar"));
+
     this.payments = {
       addManual: new payments.addManual(this.getSection("payments-add-manual")),
       list: new payments.list(this.getSection("payments-list")),
@@ -153,6 +158,8 @@ class App {
       return this.reports.Get;
     } else if (pathname == "/reports/list") {
       return this.reports.List;
+    } else if (pathname == "/calendar") {
+      return this.calendar;
     } else {
       console.error("unknown page: ", pathname);
       return null;
