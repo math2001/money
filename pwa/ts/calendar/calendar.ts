@@ -41,11 +41,24 @@ changes.set(addDays(today, 2).getTime(), [
   { name: "hello", description: "", amount: -50 }
 ])
 
+function getDateFromAttr(day: HTMLElement): Date {
+  const datetime = day.getAttribute('date')
+  if (datetime === null) {
+    console.error(day)
+    throw new Error("date attribute is null on .day element")
+  }
+
+  return new Date(parseInt(datetime, 10))
+
+}
+
 export default class Calendar {
   section: HTMLElement;
   month: HTMLTableElement;
   monthname: HTMLElement;
   report: HTMLElement;
+
+  selected: HTMLElement | null;
 
   constructor(section: HTMLElement) {
     this.section = section;
@@ -53,6 +66,8 @@ export default class Calendar {
     this.monthname = qs(this.section, ".month-name");
     this.report = qs(this.section, ".report");
     this.generateHTML()
+
+    this.selected = null;
 
     this.month.addEventListener('click', e => {
       if (!(e.target instanceof HTMLElement)) {
@@ -62,15 +77,32 @@ export default class Calendar {
       if (!closest) {
         return
       }
-      const datetime = closest.getAttribute('date')
-      if (datetime === null) {
+      if (!(closest instanceof HTMLElement)) {
         console.error(closest)
-        throw new Error("date attribute is null on .day element")
+        throw new Error("expected closest to be HTMLElement")
       }
 
-      const end = dateNormalize(new Date(parseInt(datetime, 10)))
-      const start = new Date(end.getTime())
-      start.setDate(1)
+      if (e.shiftKey === true && this.selected === null) {
+        this.selected = closest
+        this.selected.classList.add('selected')
+        this.report.innerHTML = "release shift and click on an other day"
+        return
+      }
+
+      let end = getDateFromAttr(closest)
+      let start: Date;
+      if (this.selected === null) {
+        // start from the beginning of the month
+        start = new Date(end.getTime())
+        start.setDate(1)
+      } else {
+        start = getDateFromAttr(this.selected)
+        if (start > end) {
+          [start, end] = [end, start]
+        }
+        this.selected.classList.remove('selected')
+        this.selected = null;
+      }
       const report = this.makeReport(start, end)
       
       this.report.innerHTML = `From ${report.from} to ${report.to}<br><br>Balance: $${report.balance}`
