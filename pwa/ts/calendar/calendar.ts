@@ -18,32 +18,63 @@ function dateNormalize(a: Date): Date {
 }
 
 const today = dateNormalize(new Date())
-console.log(addDays(today, 1))
 
 const changes = new Map()
 
+interface Change {
+  name: string;
+  description: string;
+  amount: number;
+}
+
+changes.set(addDays(today, -10).getTime(), [
+  { name: "the past", description: "", amount: 50 },
+])
+
+
 changes.set(addDays(today, 1).getTime(), [
-  {name: "first income", description: "", amount: 200},
-  {name: "first expense", description: "", amount: -20}
+  { name: "first income", description: "", amount: 200 },
+  { name: "first expense", description: "", amount: -20 }
 ])
 
 changes.set(addDays(today, 2).getTime(), [
-  {name: "hello", description: "", amount: -50}
+  { name: "hello", description: "", amount: -50 }
 ])
-
-for (let key of changes.keys()) {
-  console.log(key)
-}
 
 export default class Calendar {
   section: HTMLElement;
   month: HTMLTableElement;
   monthname: HTMLElement;
+  report: HTMLElement;
 
   constructor(section: HTMLElement) {
     this.section = section;
     this.month = qs(this.section, ".month") as HTMLTableElement;
     this.monthname = qs(this.section, ".month-name");
+    this.report = qs(this.section, ".report");
+    this.generateHTML()
+
+    this.month.addEventListener('click', e => {
+      if (!(e.target instanceof HTMLElement)) {
+        return
+      }
+      const closest = e.target.closest('.day')
+      if (!closest) {
+        return
+      }
+      const datetime = closest.getAttribute('date')
+      if (datetime === null) {
+        console.error(closest)
+        throw new Error("date attribute is null on .day element")
+      }
+
+      const end = dateNormalize(new Date(parseInt(datetime, 10)))
+      const start = new Date(end.getTime())
+      start.setDate(1)
+      const report = this.makeReport(start, end)
+      
+      this.report.innerHTML = `From ${report.from} to ${report.to}<br><br>Balance: $${report.balance}`
+    })
   }
 
   generateHTML() {
@@ -63,7 +94,6 @@ export default class Calendar {
       row.appendChild(th)
     }
     this.month.appendChild(row)
-    console.log('-')
 
     for (let i = 0; i < 5; i++) {
       const row = document.createElement("tr")
@@ -72,26 +102,24 @@ export default class Calendar {
         day.classList.add('day')
 
         const monthDay = (i * 7 + j - firstWeekdayIndex + 1)
-        if (monthDay <= 0 || monthDay > 31) {
-          continue
-        } 
 
-        const title = document.createTextNode('' + (i * 7 + j - firstWeekdayIndex + 1))
-        day.appendChild(title)
+        if (monthDay >= 1 && monthDay <= 31) {
+          const title = document.createTextNode('' + (i * 7 + j - firstWeekdayIndex + 1))
+          day.appendChild(title)
 
-        const date = dateNormalize(new Date())
-        date.setDate(i * 7 + j - firstWeekdayIndex + 1)
+          const date = dateNormalize(new Date())
+          date.setDate(i * 7 + j - firstWeekdayIndex + 1)
+          day.setAttribute('date', "" + date.getTime())
 
-        if (changes.get(date.getTime()) !== undefined) {
-          const dayChanges = document.createElement("ul")
-          for (let ch of changes.get(date.getTime())) {
-            const changeEl = document.createElement('li')
-            changeEl.textContent = ch.name
-            dayChanges.append(changeEl)
+          if (changes.get(date.getTime()) !== undefined) {
+            const dayChanges = document.createElement("ul")
+            for (let ch of changes.get(date.getTime())) {
+              const changeEl = document.createElement('li')
+              changeEl.textContent = ch.name
+              dayChanges.append(changeEl)
+            }
+            day.appendChild(dayChanges)
           }
-          day.appendChild(dayChanges)
-        } else {
-          console.log('nop', date, changes.get(date.getTime()))
         }
 
         row.appendChild(day)
@@ -100,11 +128,34 @@ export default class Calendar {
     }
   }
 
-  setup() {
-    this.generateHTML()
+  makeReport(from: Date, to: Date) {
+    let selectedchanges: Change[] = []
+    for (let [date, daychanges] of changes.entries()) {
+      // console.log(date, daychanges)
+      if (date < from.getTime() || date > to.getTime()) {
+        continue
+      }
+      selectedchanges.push(...daychanges)
+    }
+
+    console.log(selectedchanges)
+    let balance = 0;
+    for (let change of selectedchanges) {
+      balance += change.amount;
+    }
+
+    return {
+      from: from,
+      to: to,
+      nchanges: selectedchanges.length,
+      balance: balance,
+    }
   }
 
-  teardown() {}
+  setup() {
+  }
+
+  teardown() { }
 
 }
 
