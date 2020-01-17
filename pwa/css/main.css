@@ -30,3 +30,8 @@
 #calendar .day.not-in-month {
     color: #aaa;
 }
+
+#calendar .day ul {
+    list-style: none;
+    padding: 0;
+}
