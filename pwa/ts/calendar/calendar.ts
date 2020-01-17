@@ -23,7 +23,7 @@ export default class Calendar {
 
     const row = document.createElement('tr')
     for (let weekday of weekdays) {
-      const th = document.createElement('th')
+      const th = document.createElement('td')
       th.textContent = weekday
       row.appendChild(th)
     }
@@ -33,6 +33,7 @@ export default class Calendar {
       const row = document.createElement("tr")
       for (let j = 0; j < 7; j++) {
         const day = document.createElement('td')
+        day.classList.add('day')
         day.innerHTML = '' + (i * 7 + j - firstWeekdayIndex + 1)
         row.appendChild(day)
       }

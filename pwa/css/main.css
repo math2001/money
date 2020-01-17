@@ -8,3 +8,25 @@
 .page.active {
   display: block;
 }
+
+/*
+* calendar
+*/
+
+#calendar .day {
+    /*display: inline-block;*/
+    width: 50px;
+    height: 70px;
+    padding: 5px 5px;
+    cursor: pointer;
+    vertical-align: top;
+    user-select: none;
+}
+
+#calendar .day:hover {
+    background-color: hsl(20, 10%, 90%)
+}
+
+#calendar .day.not-in-month {
+    color: #aaa;
+}
