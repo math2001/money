@@ -22,3 +22,12 @@ export const days = [
   "Friday",
   "Saturday",
 ];
+
+export interface Entry {
+  id: number;
+  amount: number;
+  name: string;
+  description: string;
+  date: Date;
+  matched: boolean;
+}
