@@ -1,5 +1,11 @@
-import React, { MouseEvent } from "react";
+import React from "react";
 import { months } from "./data";
+
+export enum MoveType {
+  Month,
+  Year,
+}
+
 
 const Header: React.FC<{
   month: number;
@@ -19,7 +25,3 @@ const Header: React.FC<{
 
 export default Header;
 
-export enum MoveType {
-  Month,
-  Year,
-}

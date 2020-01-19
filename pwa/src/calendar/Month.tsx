@@ -1,6 +1,6 @@
 import React from "react";
 import Day from "./Day";
-import { days, months, Entry } from "./data";
+import { days, Entry } from "./data";
 
 function range(n: number): number[] {
   if (n < 0) {
@@ -31,9 +31,53 @@ interface Props {
   dayOfMonth: number;
 }
 
+const entries: Entry[] = [
+  {
+    id: 0,
+    name: "first",
+    description: "",
+    amount: 10,
+    date: new Date(),
+    matched: true,
+  },
+  {
+    id: 1,
+    name: "second",
+    description: "Hello world",
+    amount: -10,
+    date: new Date(2020, 0, 10),
+    matched: true,
+  },
+  {
+    id: 3,
+    name: "third",
+    description: "Hello world, some long description...",
+    amount: 50,
+    date: new Date(2019, 11, 15),
+    matched: false,
+  },
+  {
+    id: 4,
+    name: "fourth",
+    description: "Hello world, some long description...",
+    amount: 50,
+    date: new Date(2019, 11, 15),
+    matched: false,
+  },
+];
+
 class Month extends React.Component<Props> {
-  entriesOf(date: Date): Entry[] {
-    return [];
+  *entriesOf(target: Date): Generator<Entry, void, void> {
+    // FIXME: please be a bit smarter
+    for (let entry of entries) {
+      if (
+        entry.date.getUTCFullYear() === target.getUTCFullYear() &&
+        entry.date.getUTCMonth() === target.getUTCMonth() &&
+        entry.date.getUTCDate() === target.getUTCDate()
+      ) {
+        yield entry;
+      }
+    }
   }
 
   render() {

@@ -1,7 +1,6 @@
 import React from "react";
 import Month from "./Month";
 import Header, { MoveType } from "./Header";
-import { months, days } from "./data";
 import "./Calendar.css";
 
 interface Props {}

@@ -10,8 +10,13 @@ interface Props {
 
   dim: boolean;
 
-  entries: Entry[];
+  entries: Iterable<Entry>;
 }
+
+
+// {this.props.entries.map(entry => (
+//   <li key={entry.id}>{entry.name}</li>
+// ))}
 
 class Day extends React.Component<Props> {
   render() {
@@ -19,9 +24,10 @@ class Day extends React.Component<Props> {
       <td className={"day" + (this.props.dim ? " day-dim" : "")}>
         {this.props.dayMonth}
         <ul className="day-entries">
-          {this.props.entries.map(entry => (
-            <li key={entry.id}>{entry.name}</li>
-          ))}
+          {Array.from(this.props.entries, (entry) => (
+              <li key={entry.id}>{entry.name}</li>
+            )
+          )}
         </ul>
       </td>
     );

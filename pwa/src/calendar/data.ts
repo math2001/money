@@ -25,9 +25,9 @@ export const days = [
 
 export interface Entry {
   id: number;
-  amount: number;
   name: string;
   description: string;
+  amount: number;
   date: Date;
   matched: boolean;
 }
