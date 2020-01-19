@@ -39,7 +39,7 @@ class Month extends React.Component<Props> {
           <DayOfWeekHeader />
         </thead>
         <tbody>
-          {range(5).map(weekNumber => (
+          {range(6).map(weekNumber => (
             <tr key={"week-" + weekNumber}>
               <th>{weekNumber + 1}</th>
               {range(7).map(dayNumber => (
