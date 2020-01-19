@@ -4,7 +4,22 @@
     height: 100%;
 }
 
+.calendar-header {
+    text-align: center;
+}
+
+.calendar table {
+    border-collapse: collapse;
+}
+
 .calendar .day {
     border: 1px solid #aaa;
-    width: ;
+    width: 100px;
+    height: 100px;
+    vertical-align: top;
+    padding: 5px;
+}
+
+.calendar .day:hover {
+    background-color: #eee;
 }

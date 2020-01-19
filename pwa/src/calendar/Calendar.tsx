@@ -1,5 +1,6 @@
 import React from "react";
 import Month from "./Month";
+import Header from "./Header";
 import { months, days } from "./data";
 import "./Calendar.css";
 
@@ -31,11 +32,15 @@ class Calendar extends React.Component<Props, State> {
       throw new Error("expect state.month < 12");
     }
     return (
-      <Month
-        year={this.state.year}
-        month={this.state.month}
-        dayOfMonth={this.state.dayOfMonth}
-      />
+      <section className="calendar">
+        <Header year={this.state.year} month={this.state.month} />
+
+        <Month
+          year={this.state.year}
+          month={this.state.month}
+          dayOfMonth={this.state.dayOfMonth}
+        />
+      </section>
     );
   }
 }
