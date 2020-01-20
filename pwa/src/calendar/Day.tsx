@@ -1,5 +1,5 @@
-import React from "react";
-import { Entry } from "./data";
+import React, { MouseEvent } from "react";
+import { Entry, DayDate } from "./data";
 
 interface Props {
   // note that these are all 0 based
@@ -9,25 +9,42 @@ interface Props {
   year: number;
 
   dim: boolean;
+  selected: boolean;
+
+  onClick: (date: DayDate, extend: boolean) => void;
 
   entries: Iterable<Entry>;
 }
 
-
-// {this.props.entries.map(entry => (
-//   <li key={entry.id}>{entry.name}</li>
-// ))}
-
 class Day extends React.Component<Props> {
+  constructor(props: Props) {
+    super(props);
+
+    this.onClick = this.onClick.bind(this);
+  }
+
+  onClick(event: MouseEvent) {
+    this.props.onClick(
+      new DayDate(this.props.year, this.props.month, this.props.dayMonth),
+      event.shiftKey,
+    );
+  }
+
   render() {
     return (
-      <td className={"day" + (this.props.dim ? " day-dim" : "")}>
+      <td
+        className={
+          "day" +
+          (this.props.dim ? " day-dim" : "") +
+          (this.props.selected ? " day-selected" : "")
+        }
+        onClick={this.onClick}
+      >
         {this.props.dayMonth}
         <ul className="day-entries">
-          {Array.from(this.props.entries, (entry) => (
-              <li key={entry.id}>{entry.name}</li>
-            )
-          )}
+          {Array.from(this.props.entries, entry => (
+            <li key={entry.id}>{entry.name}</li>
+          ))}
         </ul>
       </td>
     );

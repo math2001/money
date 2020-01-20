@@ -23,7 +23,7 @@
     "build": "react-scripts build",
     "test": "react-scripts test",
     "eject": "react-scripts eject",
-    "fix": "npx onchange 'src/**/*.tsx' -- npx prettier --write {{changed}}"
+    "fix": "prettier --write src/* src/**/*"
   },
   "eslintConfig": {
     "extends": "react-app"

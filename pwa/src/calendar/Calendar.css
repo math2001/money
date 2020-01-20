@@ -1,36 +1,41 @@
 .calendar {
-    border: 1px solid #aaa;
-    width: 100%;
-    height: 100%;
+  border: 1px solid #aaa;
+  width: 100%;
+  height: 100%;
 }
 
 .calendar-header {
-    text-align: center;
+  text-align: center;
 }
 
 .calendar table {
-    border-collapse: collapse;
+  border-collapse: collapse;
 }
 
 .calendar .day {
-    border: 1px solid #aaa;
-    width: 100px;
-    height: 100px;
-    vertical-align: top;
-    padding: 5px;
-    cursor: default;
+  border: 1px solid #aaa;
+  width: 100px;
+  height: 100px;
+  vertical-align: top;
+  padding: 5px;
+  cursor: default;
+  user-select: none;
 }
 
 .calendar .day-dim {
-    border: 1px solid #eee;
-    color: #888;
+  border: 1px solid #eee;
+  color: #888;
 }
 
-.calendar .day:hover {
-    background-color: #eee;
+.calendar .day-selected {
+  background-color: hsl(219.1, 35.4%, 87.3%);
+}
+
+.calendar .day:not(.day-selected):hover {
+  background-color: hsl(219.1, 35.4%, 95%);
 }
 
 .calendar .day-entries {
-    padding: 0;
-    list-style: none;
+  padding: 0;
+  list-style: none;
 }

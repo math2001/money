@@ -6,7 +6,6 @@ export enum MoveType {
   Year,
 }
 
-
 const Header: React.FC<{
   month: number;
   year: number;
@@ -24,4 +23,3 @@ const Header: React.FC<{
 };
 
 export default Header;
-
