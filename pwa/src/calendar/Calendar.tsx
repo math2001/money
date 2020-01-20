@@ -2,7 +2,7 @@ import React from "react";
 import Month from "./Month";
 import Details from "./Details";
 import Header, { MoveType } from "./Header";
-import { DayDate } from "./data";
+import { DayDate, Entry } from "./data";
 import "./Calendar.css";
 
 interface Props {}
@@ -13,6 +13,8 @@ interface State {
 
   selectedFrom: DayDate | null;
   selectedTo: DayDate | null;
+
+  entries: Entry[];
 }
 
 class Calendar extends React.Component<Props, State> {
@@ -25,6 +27,7 @@ class Calendar extends React.Component<Props, State> {
       month: today.getMonth(),
       selectedFrom: null, // null means from the very beginning
       selectedTo: DayDate.from(today),
+      entries: entries,
     };
 
     this.move = this.move.bind(this);
@@ -59,9 +62,7 @@ class Calendar extends React.Component<Props, State> {
       return {
         year: newDate.getFullYear(),
         month: newDate.getMonth(),
-        dayOfMonth: newDate.getDate(),
         selectedFrom: selectedFrom,
-        selectedTo: state.selectedTo,
       };
     });
   }
@@ -76,13 +77,6 @@ class Calendar extends React.Component<Props, State> {
           selectedFrom: null,
         };
       }
-      // make sure that selectedTo is always after selectedFrom
-      // if (date.obj() > state.selectedTo.obj()) {
-      //   return {
-      //     selectedFrom: state.selectedTo,
-      //     selectedTo: date,
-      //   };
-      // }
       return {
         selectedFrom: date,
         selectedTo: state.selectedTo,
@@ -109,12 +103,54 @@ class Calendar extends React.Component<Props, State> {
           onDayClick={this.onDayClick}
           selectedFrom={this.state.selectedFrom}
           selectedTo={this.state.selectedTo}
+          entries={this.state.entries}
         />
 
-        <Details from={this.state.selectedFrom} to={this.state.selectedTo} />
+        <Details
+          from={this.state.selectedFrom}
+          to={this.state.selectedTo}
+          entries={this.state.entries}
+        />
       </section>
     );
   }
 }
 
 export default Calendar;
+
+// for debug purposes... Obviously, this will be fetched from the server later on
+
+const entries: Entry[] = [
+  {
+    id: 0,
+    name: "first",
+    description: "",
+    amount: 10,
+    date: new Date(),
+    matched: true,
+  },
+  {
+    id: 1,
+    name: "second",
+    description: "Hello world",
+    amount: -10,
+    date: new Date(2020, 0, 10),
+    matched: true,
+  },
+  {
+    id: 3,
+    name: "third",
+    description: "Hello world, some long description...",
+    amount: 50,
+    date: new Date(2019, 11, 15),
+    matched: false,
+  },
+  {
+    id: 4,
+    name: "fourth",
+    description: "Hello world, some long description...",
+    amount: 50,
+    date: new Date(2019, 11, 15),
+    matched: false,
+  },
+];

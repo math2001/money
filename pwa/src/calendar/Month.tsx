@@ -34,13 +34,15 @@ interface Props {
   selectedFrom: DayDate | null;
   selectedTo: DayDate | null;
 
+  entries: Entry[];
+
   onDayClick: (date: DayDate, extend: boolean) => void;
 }
 
 class Month extends React.Component<Props> {
   *entriesOf(target: Date): Generator<Entry, void, void> {
     // FIXME: please be a bit smarter
-    for (let entry of entries) {
+    for (let entry of this.props.entries) {
       if (
         entry.date.getUTCFullYear() === target.getUTCFullYear() &&
         entry.date.getUTCMonth() === target.getUTCMonth() &&
@@ -124,38 +126,3 @@ class Month extends React.Component<Props> {
 }
 
 export default Month;
-
-const entries: Entry[] = [
-  {
-    id: 0,
-    name: "first",
-    description: "",
-    amount: 10,
-    date: new Date(),
-    matched: true,
-  },
-  {
-    id: 1,
-    name: "second",
-    description: "Hello world",
-    amount: -10,
-    date: new Date(2020, 0, 10),
-    matched: true,
-  },
-  {
-    id: 3,
-    name: "third",
-    description: "Hello world, some long description...",
-    amount: 50,
-    date: new Date(2019, 11, 15),
-    matched: false,
-  },
-  {
-    id: 4,
-    name: "fourth",
-    description: "Hello world, some long description...",
-    amount: 50,
-    date: new Date(2019, 11, 15),
-    matched: false,
-  },
-];

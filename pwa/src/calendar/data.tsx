@@ -68,8 +68,8 @@ export class DayDate {
   }
 
   obj(): Date {
-    // always return the dates at the same time (12 o'clock)
-    return new Date(this.year, this.month, this.dayOfMonth, 12, 0, 0, 0);
+    // always return the dates at the same time
+    return new Date(this.year, this.month, this.dayOfMonth, 0, 0, 0, 0);
   }
 
   equals(target: DayDate): boolean {
@@ -78,5 +78,62 @@ export class DayDate {
       this.month === target.month &&
       this.dayOfMonth === target.dayOfMonth
     );
+  }
+
+  between(start: DayDate | Date, end: DayDate | Date): boolean {
+    let start_: Date;
+    let end_: Date;
+    if (start instanceof DayDate) {
+      start_ = start.obj();
+    } else {
+      start_ = start;
+    }
+
+    if (end instanceof DayDate) {
+      end_ = end.obj();
+    } else {
+      end_ = end;
+    }
+
+    if (start_ > end_) {
+      [start_, end_] = [end_, start_];
+    }
+
+    const obj = this.obj();
+    return obj > start_ && obj < end;
+  }
+
+  static between(
+    start: DayDate | Date,
+    end: DayDate | Date,
+    target: DayDate | Date,
+  ): boolean {
+    let start_: Date;
+    let end_: Date;
+    let target_: Date;
+
+    if (start instanceof DayDate) {
+      start_ = start.obj();
+    } else {
+      start_ = start;
+    }
+
+    if (end instanceof DayDate) {
+      end_ = end.obj();
+    } else {
+      end_ = end;
+    }
+
+    if (target instanceof DayDate) {
+      target_ = target.obj();
+    } else {
+      target_ = target;
+    }
+
+    if (start_ > end_) {
+      [start_, end_] = [end_, start_];
+    }
+
+    return target_ > start_ && target_ < end;
   }
 }
