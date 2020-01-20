@@ -38,7 +38,6 @@ class Details extends React.Component<Props> {
     // (like str[1:3] excludes the character at index 3) but it's highlighted as
     // selected.
     end.setDate(end.getDate() + 1);
-    console.log("selecting from", start, "to", end);
 
     const selectedEntries = this.props.entries.filter(entry => {
       return (start === null || entry.date > start) && entry.date < end;

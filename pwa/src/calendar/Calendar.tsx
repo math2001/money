@@ -43,26 +43,26 @@ class Calendar extends React.Component<Props, State> {
       // if the displayed months is the current month and nothing
       // is currently selected, select the current date otherwise,
       // select nothing
-      let selectedFrom: DayDate | null = state.selectedFrom;
-      if (state.selectedFrom === null) {
+      let selectedTo: DayDate | null = state.selectedTo;
+      if (selectedTo === null) {
         const today = new Date();
         if (newDate.getMonth() === today.getMonth()) {
-          selectedFrom = DayDate.from(newDate);
+          selectedTo = DayDate.from(newDate);
         }
         // just to make sure
-        if (state.selectedTo !== null) {
+        if (state.selectedFrom !== null) {
           console.error({
-            selectedFrom: state.selectedFrom,
             selectedTo: state.selectedTo,
+            selectedFrom: state.selectedFrom,
           });
-          throw new Error("selectedFrom === null but selectedTo !== null");
+          throw new Error("selectedTo === null but selectedFrom !== null");
         }
       }
 
       return {
         year: newDate.getFullYear(),
         month: newDate.getMonth(),
-        selectedFrom: selectedFrom,
+        selectedTo: selectedTo,
       };
     });
   }
