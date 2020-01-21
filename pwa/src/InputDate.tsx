@@ -52,7 +52,6 @@ class InputDate extends React.Component<Props, State> {
       throw new Error("unexpected name");
     }
 
-    console.log("change", event.target.value);
     const value = parseInt(event.target.value, 10);
     if (isNaN(value)) {
       // @ts-ignore
@@ -76,6 +75,7 @@ class InputDate extends React.Component<Props, State> {
   }
 
   render() {
+    console.log("rendering input date", this.state, this.props);
     return (
       <div className="inputdate">
         <input

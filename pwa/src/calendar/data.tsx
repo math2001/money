@@ -136,4 +136,12 @@ export class DayDate {
 
     return target_ > start_ && target_ < end;
   }
+
+  toString() {
+    return `${this.year}-${this.month}-${this.dayOfMonth}`;
+  }
+
+  copy(): DayDate {
+    return new DayDate(this.year, this.month, this.dayOfMonth);
+  }
 }

@@ -2,6 +2,7 @@ import React from "react";
 import Month from "./Month";
 import Details from "./Details";
 import Header, { MoveType } from "./Header";
+import AddEntry from "./AddEntry";
 import { DayDate, Entry } from "./data";
 import "./Calendar.css";
 
@@ -12,9 +13,10 @@ interface State {
   month: number;
 
   selectedFrom: DayDate | null;
-  selectedTo: DayDate | null;
+  selectedTo: DayDate;
 
   entries: Entry[];
+  addingNewEntry: boolean;
 }
 
 class Calendar extends React.Component<Props, State> {
@@ -28,10 +30,12 @@ class Calendar extends React.Component<Props, State> {
       selectedFrom: null, // null means from the very beginning
       selectedTo: DayDate.from(today),
       entries: entries,
+      addingNewEntry: false,
     };
 
     this.move = this.move.bind(this);
     this.onDayClick = this.onDayClick.bind(this);
+    this.onDateChange = this.onDateChange.bind(this);
   }
 
   move(type: MoveType, amount: number) {
@@ -84,6 +88,18 @@ class Calendar extends React.Component<Props, State> {
     });
   }
 
+  onDateChange({ field, value }: { field: string; value: number }) {
+    const selectedTo = this.state.selectedTo.copy();
+    if (field !== "year" && field !== "month" && field !== "dayOfMonth") {
+      console.error({ field });
+      throw new Error("invalid date change field");
+    }
+    selectedTo[field] = value;
+    this.setState({
+      selectedTo: selectedTo,
+    });
+  }
+
   render() {
     if (this.state.month >= 12) {
       console.error({ month: this.state.month });
@@ -111,6 +127,21 @@ class Calendar extends React.Component<Props, State> {
           to={this.state.selectedTo}
           entries={this.state.entries}
         />
+
+        {this.state.addingNewEntry && (
+          <AddEntry
+            year={this.state.selectedTo.year}
+            month={this.state.selectedTo.month}
+            dayOfMonth={this.state.selectedTo.dayOfMonth}
+            onClose={() => this.setState({ addingNewEntry: false })}
+            onDateChange={this.onDateChange}
+          />
+        )}
+        {!this.state.addingNewEntry && (
+          <button onClick={() => this.setState({ addingNewEntry: true })}>
+            Add Entry
+          </button>
+        )}
       </section>
     );
   }
