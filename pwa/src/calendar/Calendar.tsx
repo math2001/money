@@ -5,7 +5,13 @@ import Header, { MoveType } from "./Header";
 import AddEntry from "./AddEntry";
 import { DayDate, Entry } from "./data";
 import { assert } from "utils";
+import { TabSet, Tab } from "mp";
 import "./Calendar.css";
+
+enum tab {
+  NewEntry = "new entry",
+  Details = "details",
+}
 
 interface Props {}
 
@@ -17,7 +23,7 @@ interface State {
   selectedTo: DayDate;
 
   entries: Entry[];
-  addingNewEntry: boolean;
+  activeTab: string;
 }
 
 class Calendar extends React.Component<Props, State> {
@@ -31,7 +37,7 @@ class Calendar extends React.Component<Props, State> {
       selectedFrom: null, // null means from the very beginning
       selectedTo: DayDate.from(today),
       entries: entries,
-      addingNewEntry: true,
+      activeTab: tab.Details,
     };
 
     this.move = this.move.bind(this);
@@ -116,7 +122,7 @@ class Calendar extends React.Component<Props, State> {
 
     this.setState(state => ({
       entries: [...state.entries, entry],
-      addingNewEntry: false,
+      activeTab: tab.Details,
     }));
   }
 
@@ -142,27 +148,27 @@ class Calendar extends React.Component<Props, State> {
           entries={this.state.entries}
         />
 
-        <Details
-          from={this.state.selectedFrom}
-          to={this.state.selectedTo}
-          entries={this.state.entries}
-        />
-
-        {this.state.addingNewEntry && (
-          <AddEntry
-            year={this.state.selectedTo.year}
-            month={this.state.selectedTo.month}
-            dayOfMonth={this.state.selectedTo.dayOfMonth}
-            onClose={() => this.setState({ addingNewEntry: false })}
-            onDateChange={this.onDateChange}
-            onSubmit={this.onNewEntrySubmit}
-          />
-        )}
-        {!this.state.addingNewEntry && (
-          <button onClick={() => this.setState({ addingNewEntry: true })}>
-            Add Entry
-          </button>
-        )}
+        <TabSet
+          active={this.state.activeTab}
+          onChange={(tabname: string) => this.setState({ activeTab: tabname })}
+        >
+          <Tab id={tab.Details} title="Details">
+            <Details
+              from={this.state.selectedFrom}
+              to={this.state.selectedTo}
+              entries={this.state.entries}
+            />
+          </Tab>
+          <Tab id={tab.NewEntry} title="Add New Entry">
+            <AddEntry
+              year={this.state.selectedTo.year}
+              month={this.state.selectedTo.month}
+              dayOfMonth={this.state.selectedTo.dayOfMonth}
+              onDateChange={this.onDateChange}
+              onSubmit={this.onNewEntrySubmit}
+            />
+          </Tab>
+        </TabSet>
       </section>
     );
   }

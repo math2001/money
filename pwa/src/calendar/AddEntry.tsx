@@ -7,7 +7,6 @@ interface Props {
   month: number;
   dayOfMonth: number;
 
-  onClose: () => void;
   onDateChange: (change: { field: string; value: number }) => void;
   onSubmit: (entry: Entry) => void;
 }
@@ -71,9 +70,6 @@ class AddEntry extends React.Component<Props> {
   render() {
     return (
       <article className="add-entry">
-        <h3>
-          Add Entry <button onClick={this.props.onClose}>&times;</button>
-        </h3>
         <form onSubmit={this.onSubmit}>
           <p>
             <label htmlFor="name">Name: </label> <input type="text" id="name" />
