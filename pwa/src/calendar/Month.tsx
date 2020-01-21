@@ -1,6 +1,7 @@
 import React from "react";
 import Day from "./Day";
-import { days, Entry, DayDate, assert } from "./data";
+import { days, Entry, DayDate } from "./data";
+import { assert } from "utils";
 
 function range(n: number): number[] {
   if (n < 0) {

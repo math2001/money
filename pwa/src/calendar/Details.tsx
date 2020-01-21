@@ -1,5 +1,6 @@
 import React, { ReactElement } from "react";
-import { DayDate, Entry, assert } from "./data";
+import { DayDate, Entry } from "./data";
+import { assert } from "utils";
 
 interface Props {
   from: DayDate | null;

@@ -4,6 +4,7 @@ import Details from "./Details";
 import Header, { MoveType } from "./Header";
 import AddEntry from "./AddEntry";
 import { DayDate, Entry } from "./data";
+import { assert } from "utils";
 import "./Calendar.css";
 
 interface Props {}
@@ -30,12 +31,13 @@ class Calendar extends React.Component<Props, State> {
       selectedFrom: null, // null means from the very beginning
       selectedTo: DayDate.from(today),
       entries: entries,
-      addingNewEntry: false,
+      addingNewEntry: true,
     };
 
     this.move = this.move.bind(this);
     this.onDayClick = this.onDayClick.bind(this);
     this.onDateChange = this.onDateChange.bind(this);
+    this.onNewEntrySubmit = this.onNewEntrySubmit.bind(this);
   }
 
   move(type: MoveType, amount: number) {
@@ -100,6 +102,24 @@ class Calendar extends React.Component<Props, State> {
     });
   }
 
+  // FIXME: return the error so that the AddEntry component can display it
+  onNewEntrySubmit(entry: Entry) {
+    // overwrite the day
+    entry.date.setFullYear(this.state.selectedTo.year);
+    entry.date.setMonth(this.state.selectedTo.month);
+    entry.date.setDate(this.state.selectedTo.dayOfMonth);
+
+    assert(
+      entry.id === -1,
+      "entry id should be -1, because Calendar will overwrite it",
+    );
+
+    this.setState(state => ({
+      entries: [...state.entries, entry],
+      addingNewEntry: false,
+    }));
+  }
+
   render() {
     if (this.state.month >= 12) {
       console.error({ month: this.state.month });
@@ -135,6 +155,7 @@ class Calendar extends React.Component<Props, State> {
             dayOfMonth={this.state.selectedTo.dayOfMonth}
             onClose={() => this.setState({ addingNewEntry: false })}
             onDateChange={this.onDateChange}
+            onSubmit={this.onNewEntrySubmit}
           />
         )}
         {!this.state.addingNewEntry && (

@@ -25,12 +25,6 @@ export const days = [
   "Saturday",
 ];
 
-export function assert(condition: boolean, message: string): asserts condition {
-  if (condition === false) {
-    throw new Error(`Assertion Error: ${message}`);
-  }
-}
-
 export interface Entry {
   id: number;
   name: string;
