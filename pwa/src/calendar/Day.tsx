@@ -44,7 +44,7 @@ class Day extends React.Component<Props> {
         <ul className="day-entries">
           {Array.from(this.props.entries, entry => (
             <li key={entry.id}>
-              {entry.name} (${entry.amount})
+              <code>#{entry.id}</code> {entry.name} (${entry.amount})
             </li>
           ))}
         </ul>

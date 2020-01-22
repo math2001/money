@@ -3,7 +3,7 @@ import Month from "./Month";
 import Details from "./Details";
 import Header, { MoveType } from "./Header";
 import AddEntry from "./AddEntry";
-import { DayDate, Entry } from "./data";
+import { DayDate, Entry, ServerEntry } from "./data";
 import { assert } from "utils";
 import { TabSet, Tab } from "mp";
 import "./Calendar.css";
@@ -53,11 +53,12 @@ class Calendar extends React.Component<Props, State> {
       throw new Error("invalid response code");
     }
     const text = await response.text();
-    let body;
+    let body: { kind: string; entries: ServerEntry[] };
+
     try {
       body = JSON.parse(text);
     } catch (e) {
-      console.error(body);
+      console.error(text);
       throw e;
     }
     assert(
@@ -65,7 +66,12 @@ class Calendar extends React.Component<Props, State> {
       `200 should mean success, got ${body.kind}`,
     );
     this.setState({
-      entries: body.entries,
+      entries: body.entries.map(
+        (entry: ServerEntry): Entry => ({
+          ...entry,
+          date: new Date(entry.date * 1000),
+        }),
+      ),
     });
   }
 
@@ -132,27 +138,27 @@ class Calendar extends React.Component<Props, State> {
   }
 
   // FIXME: return the error so that the AddEntry component can display it
-  async onNewEntrySubmit(entry: Entry) {
+  async onNewEntrySubmit(userEntry: Entry) {
     if (this.state.entries === null) {
       throw new Error("state entries are still loading (null)");
     }
 
     // overwrite the day
-    entry.date.setFullYear(this.state.selectedTo.year);
-    entry.date.setMonth(this.state.selectedTo.month);
-    entry.date.setDate(this.state.selectedTo.dayOfMonth);
+    userEntry.date.setFullYear(this.state.selectedTo.year);
+    userEntry.date.setMonth(this.state.selectedTo.month);
+    userEntry.date.setDate(this.state.selectedTo.dayOfMonth);
 
     assert(
-      entry.id < 0,
-      "entry id should be < 0, because Calendar will overwrite it",
+      userEntry.id < 0,
+      "userEntry id should be < 0, because Calendar will overwrite it",
     );
 
     const response = await fetch("/api/add", {
       method: "POST",
       body: JSON.stringify({
-        ...entry,
+        ...userEntry,
         // only talk in terms of seconds
-        date: Math.round(entry.date.getTime() / 1000),
+        date: Math.round(userEntry.date.getTime() / 1000),
       }),
     });
 
@@ -161,21 +167,18 @@ class Calendar extends React.Component<Props, State> {
       throw new Error("expected response 200");
     }
 
-    let responseEntry;
+    let body: { kind: string; entry: ServerEntry; originalID: number };
     try {
-      responseEntry = await response.json();
+      body = await response.json();
     } catch (e) {
       console.error(response.text());
       throw e;
     }
     // the server only talks in terms of seconds, but javascripts understands
     // milliseconds
-    responseEntry.date = new Date(responseEntry.date * 1000);
+    const entry = { ...body.entry, date: new Date(body.entry.date * 1000) };
 
-    assert(
-      entry.id >= 0,
-      "entry id should have been set to different id than -1",
-    );
+    assert(entry.id >= 0, "responseEntry.id should have been set");
 
     this.setState(state => {
       if (state.entries === null) {

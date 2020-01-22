@@ -13,12 +13,12 @@ import (
 )
 
 type Entry struct {
-	ID int
-	Name string
-	Description string
-	Amount int
-	Date int
-	Matched bool
+	ID int `json:"id"`
+	Name string `json:"name"`
+	Description string `json:"description"`
+	Amount int `json:"amount"`
+	Date int `json:"date"`
+	Matched bool `json:"matched"`
 }
 
 func main() {
@@ -51,25 +51,49 @@ func main() {
 	})).Methods(http.MethodGet)
 
 	api.HandleFunc("/add", h(func(r *http.Request) *resp {
-		f, err := os.OpenFile("./_simpleserver/data/entries.json", os.O_CREATE|os.O_APPEND, 0600)
-		if err != nil {
+		var maxId int
+		f, err := os.Open("./_simpleserver/data/entries.json")
+		if err != nil && !os.IsNotExist(err) {
 			return &resp{err: err}
 		}
-		var entry *Entry
-		if err := json.NewDecoder(r.Body).Decode(&entry); err != nil {
+		decoder := json.NewDecoder(f)
+		for {
+			var entry *Entry
+			if err := decoder.Decode(&entry); err == io.EOF {
+				break
+			} else if err != nil {
+				return &resp{err: err}
+			}
+			if entry.ID > maxId {
+				maxId = entry.ID
+			}
+		}
+
+		var newEntry *Entry
+		if err := json.NewDecoder(r.Body).Decode(&newEntry); err != nil {
 			return &resp{err: err}
 		}
 		r.Body.Close()
+		originalId := newEntry.ID
+		newEntry.ID = maxId + 1
 
-		encoder := json.NewEncoder(f)
-		if err := encoder.Encode(entry); err != nil {
+		f, err = os.OpenFile("./_simpleserver/data/entries.json", os.O_WRONLY|os.O_CREATE|os.O_APPEND, 0600)
+		if err != nil {
 			return &resp{err: err}
 		}
+
+		encoder := json.NewEncoder(f)
+		if err := encoder.Encode(newEntry); err != nil {
+			return &resp{err: err}
+		}
+		log.Printf("writing new entry %#v", newEntry)
 
 		return &resp{
 			code: http.StatusOK,
 			body: kv{
 				"kind": "success",
+				"originalID": originalId,
+				"entry": newEntry,
 			},
 		}
 	})).Methods(http.MethodPost)

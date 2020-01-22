@@ -6,6 +6,7 @@ export function cast<T>(instance: any, type: { new (...args: any[]): T }): T {
 
 export function assert(condition: boolean, message: string): asserts condition {
   if (condition === false) {
+    debugger;
     throw new Error(`Assertion Error: ${message}`);
   }
 }

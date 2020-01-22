@@ -34,6 +34,15 @@ export interface Entry {
   matched: boolean;
 }
 
+export interface ServerEntry {
+  id: number;
+  name: string;
+  description: string;
+  amount: number;
+  date: number; // timestamp
+  matched: boolean;
+}
+
 export class DayDate {
   year: number;
   month: number;
