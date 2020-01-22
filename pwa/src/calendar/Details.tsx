@@ -76,20 +76,26 @@ class Details extends React.Component<Props> {
     assert(nIncomes >= nUnmatchedIncomes, "# unmatched > # all");
     assert(nExpenses >= nUnmatchedExpenses, "# unmatched > # all");
 
-    let from: ReactElement | null = null;
-    if (this.props.from !== null) {
-      from = this.props.from.render();
+    var date: ReactElement;
+    if (this.props.from === null) {
+      date = <p>Up to {this.props.to.render()}</p>;
+    } else if (this.props.from.equals(this.props.to)) {
+      date = (
+        <p>
+          <em>Only</em> {this.props.from.render()}
+        </p>
+      );
+    } else {
+      date = (
+        <p>
+          From {this.props.from.render()} to {this.props.to.render()}
+        </p>
+      );
     }
 
     return (
       <article className="calendar-details">
-        {from ? (
-          <p>
-            From {from} to {this.props.to.render()}
-          </p>
-        ) : (
-          <p>{this.props.to.render()}</p>
-        )}
+        {date}
         <p>
           -${expenses} from {nExpenses} expenses{" "}
           <small>
@@ -104,7 +110,6 @@ class Details extends React.Component<Props> {
           </small>
         </p>
         <p>
-          {" "}
           Balance: ${incomes - expenses}{" "}
           <small>${matchedIncomes - matchedExpenses} matched</small>
         </p>
