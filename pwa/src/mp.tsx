@@ -15,8 +15,8 @@ export class TabSet extends React.Component<Props> {
             {this.props.children.map(tab => (
               <li key={tab.props.id}>
                 <button
-                  onClick={() => this.props.onChange(tab.props.id)}
                   disabled={this.props.active === tab.props.id}
+                  onClick={() => this.props.onChange(tab.props.id)}
                 >
                   {tab.props.title}
                 </button>
