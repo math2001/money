@@ -10,12 +10,12 @@ export class TabSet extends React.Component<Props> {
   render(): JSX.Element {
     return (
       <div>
-        <nav>
+        <nav className="tabset-nav">
           <ul>
             {this.props.children.map(tab => (
               <li key={tab.props.id}>
                 <button
-                  disabled={this.props.active === tab.props.id}
+                  className={this.props.active === tab.props.id ? "active" : ""}
                   onClick={() => this.props.onChange(tab.props.id)}
                 >
                   {tab.props.title}
@@ -42,6 +42,6 @@ interface TabProps {
 
 export class Tab extends React.Component<TabProps> {
   render() {
-    return <div>{this.props.children}</div>;
+    return <section className="tabset-tab">{this.props.children}</section>;
   }
 }

@@ -6,7 +6,7 @@ import AddEntry from "./AddEntry";
 import { DayDate, Entry, ServerEntry } from "./data";
 import { assert } from "utils";
 import { TabSet, Tab } from "mp";
-import "./Calendar.css";
+import "./CalendarPage.css";
 
 enum tab {
   NewEntry = "new entry",
@@ -26,7 +26,7 @@ interface State {
   activeTab: string;
 }
 
-class Calendar extends React.Component<Props, State> {
+class CalendarPage extends React.Component<Props, State> {
   constructor(props: Props) {
     super(props);
 
@@ -200,46 +200,52 @@ class Calendar extends React.Component<Props, State> {
       return <p>Loading...</p>;
     }
     return (
-      <section className="calendar">
-        <Header
-          year={this.state.year}
-          month={this.state.month}
-          move={this.move}
-        />
+      <section className="page page-calendar">
+        <section className="calendar">
+          <Header
+            year={this.state.year}
+            month={this.state.month}
+            move={this.move}
+          />
 
-        <Month
-          year={this.state.year}
-          month={this.state.month}
-          onDayClick={this.onDayClick}
-          selectedFrom={this.state.selectedFrom}
-          selectedTo={this.state.selectedTo}
-          entries={this.state.entries}
-        />
+          <Month
+            year={this.state.year}
+            month={this.state.month}
+            onDayClick={this.onDayClick}
+            selectedFrom={this.state.selectedFrom}
+            selectedTo={this.state.selectedTo}
+            entries={this.state.entries}
+          />
+        </section>
 
-        <TabSet
-          active={this.state.activeTab}
-          onChange={(tabname: string) => this.setState({ activeTab: tabname })}
-        >
-          <Tab id={tab.Details} title="Details">
-            <Details
-              from={this.state.selectedFrom}
-              to={this.state.selectedTo}
-              entries={this.state.entries}
-            />
-          </Tab>
-          <Tab id={tab.NewEntry} title="Add New Entry">
-            <AddEntry
-              year={this.state.selectedTo.year}
-              month={this.state.selectedTo.month}
-              dayOfMonth={this.state.selectedTo.dayOfMonth}
-              onDateChange={this.onDateChange}
-              onSubmit={this.onNewEntrySubmit}
-            />
-          </Tab>
-        </TabSet>
+        <aside className="calendar-extras">
+          <TabSet
+            active={this.state.activeTab}
+            onChange={(tabname: string) =>
+              this.setState({ activeTab: tabname })
+            }
+          >
+            <Tab id={tab.Details} title="Details">
+              <Details
+                from={this.state.selectedFrom}
+                to={this.state.selectedTo}
+                entries={this.state.entries}
+              />
+            </Tab>
+            <Tab id={tab.NewEntry} title="Add New Entry">
+              <AddEntry
+                year={this.state.selectedTo.year}
+                month={this.state.selectedTo.month}
+                dayOfMonth={this.state.selectedTo.dayOfMonth}
+                onDateChange={this.onDateChange}
+                onSubmit={this.onNewEntrySubmit}
+              />
+            </Tab>
+          </TabSet>
+        </aside>
       </section>
     );
   }
 }
 
-export default Calendar;
+export default CalendarPage;

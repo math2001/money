@@ -1,0 +1,87 @@
+.page-calendar {
+  display: grid;
+  grid-template-columns: 2fr 1fr;
+}
+
+.calendar {
+  border: 1px solid #aaa;
+}
+
+.calendar-header {
+  text-align: center;
+}
+
+.calendar table {
+  border-collapse: collapse;
+}
+
+.calendar .day {
+  border: 1px solid #aaa;
+  width: 100px;
+  height: 100px;
+  vertical-align: top;
+  padding: 5px;
+  cursor: default;
+  user-select: none;
+}
+
+.calendar .day-dim {
+  border: 1px solid #eee;
+  color: #888;
+}
+
+.calendar .day-selected {
+  background-color: hsl(219.1, 35.4%, 87.3%);
+}
+
+.calendar .day:not(.day-selected):hover {
+  background-color: hsl(219.1, 35.4%, 95%);
+}
+
+.calendar .day-entries {
+  padding: 0;
+  list-style: none;
+}
+
+.add-entry {
+  border: 1px solid #aaa;
+}
+
+.calendar-extras .tabset-nav {
+  border-bottom: 1px solid #aaa;
+}
+
+.calendar-extras .tabset-nav ul {
+  list-style-type: none;
+  padding: 0;
+  margin: 0;
+  display: flex;
+  height: 32px;
+}
+
+.calendar-extras .tabset-nav li {
+  list-style-type: none;
+  display: inline-block;
+  flex-grow: 1;
+}
+.calendar-extras .tabset-nav li:not(:first-child) {
+  border-left: 1px solid #aaa;
+}
+
+.calendar-extras .tabset-nav button {
+  border: 0;
+  background: none;
+  width: 100%;
+  height: 100%;
+  text-align: center;
+  padding: 0;
+}
+
+.calendar-extras .tabset-nav button.active {
+  text-decoration: underline;
+  font-weight: bold;
+}
+
+.calendar-extras .tabset-tab {
+  padding: 4px 12px;
+}
