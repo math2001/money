@@ -4,23 +4,13 @@ import { assert } from "utils";
 
 interface Props {
   from: DayDate | null;
-  to: DayDate | null;
+  to: DayDate;
 
   entries: Entry[];
 }
 
-interface Report {
-  incomes: number;
-  expenses: number;
-}
-
 class Details extends React.Component<Props> {
-  getReport(): Report {
-    assert(
-      this.props.to !== null,
-      "should have custom message when to (and from) is null (no data to display)",
-    );
-
+  render() {
     let start: Date | null;
     let end: Date;
 
@@ -50,40 +40,73 @@ class Details extends React.Component<Props> {
 
     let expenses = 0.0;
     let incomes = 0.0;
+    let matchedExpenses = 0.0;
+    let matchedIncomes = 0.0;
+
+    let nExpenses = 0;
+    let nIncomes = 0;
+    let nUnmatchedExpenses = 0;
+    let nUnmatchedIncomes = 0;
+
     for (let entry of selectedEntries) {
       if (entry.amount > 0) {
         incomes += entry.amount;
+        if (entry.matched) {
+          matchedIncomes += entry.amount;
+        } else {
+          nUnmatchedIncomes++;
+        }
+        nIncomes++;
       } else {
         // minus to get a positive expense total
         expenses -= entry.amount;
+        if (entry.matched) {
+          matchedExpenses -= entry.amount;
+        } else {
+          nUnmatchedExpenses++;
+        }
+        nExpenses++;
       }
     }
 
-    return { expenses, incomes };
-  }
+    assert(
+      nIncomes + nExpenses === selectedEntries.length,
+      "# incomes + # expenses != # entries",
+    );
+    assert(nIncomes >= nUnmatchedIncomes, "# unmatched > # all");
+    assert(nExpenses >= nUnmatchedExpenses, "# unmatched > # all");
 
-  render() {
-    if (this.props.to === null) {
-      return (
-        <article className="calendar-details calendar-details-hidden">
-          Nothing to display
-        </article>
-      );
-    }
-    let from: ReactElement | string;
+    let from: ReactElement | null = null;
     if (this.props.from !== null) {
       from = this.props.from.render();
-    } else {
-      from = "beginning";
     }
 
-    const { expenses, incomes } = this.getReport();
     return (
       <article className="calendar-details">
-        <p>From: {from}</p>
-        <p>To: {this.props.to.render()}</p>
+        {from ? (
+          <p>
+            From {from} to {this.props.to.render()}
+          </p>
+        ) : (
+          <p>{this.props.to.render()}</p>
+        )}
         <p>
-          Balance: {incomes - expenses} (+{expenses}, -{incomes})
+          -${expenses} from {nExpenses} expenses{" "}
+          <small>
+            ({nUnmatchedExpenses} weren't matched; ${expenses - matchedExpenses}
+            )
+          </small>
+        </p>
+        <p>
+          +${incomes} from {nIncomes} incomes{" "}
+          <small>
+            ({nUnmatchedIncomes} weren't matched; ${incomes - matchedIncomes})
+          </small>
+        </p>
+        <p>
+          {" "}
+          Balance: ${incomes - expenses}{" "}
+          <small>${matchedIncomes - matchedExpenses} matched</small>
         </p>
       </article>
     );
